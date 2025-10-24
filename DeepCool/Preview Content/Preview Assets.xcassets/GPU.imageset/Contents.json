@@ -1,14 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "gpu.jpg",
-      "idiom" : "mac",
+      "filename" : "GPU.png",
+      "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "gpu 1.jpg",
-      "idiom" : "mac",
+      "idiom" : "universal",
       "scale" : "2x"
+    },
+    {
+      "idiom" : "universal",
+      "scale" : "3x"
     }
   ],
   "info" : {
