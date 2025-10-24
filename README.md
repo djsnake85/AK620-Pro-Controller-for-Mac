@@ -30,4 +30,7 @@ L'application est également compatible avec l'affichage d'autres informations t
 
    ```bash
    git clone https://github.com/votre-utilisateur/DeepCool-AK620-Controller.git
+   
 <img width="1024" height="1024" alt="Deepcool" src="https://github.com/user-attachments/assets/837739a2-c45d-4aff-87f9-f3926a95d331" />
+<img width="749" height="1106" alt="APP" src="https://github.com/user-attachments/assets/470b34ae-2e30-45cc-bed4-c97aaa6711ce" />
+
