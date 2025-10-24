@@ -144,7 +144,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             string: statusText,
             attributes: [
                 .foregroundColor: color,
-                .font: NSFont.systemFont(ofSize: 13, weight: .bold)
+                .font: NSFont.systemFont(ofSize: 14, weight: .bold)
             ]
         )
     }

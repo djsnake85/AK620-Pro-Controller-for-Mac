@@ -1,3 +1,5 @@
+//Djsnake85
+
 import SwiftUI
 import AppKit
 import Foundation
@@ -59,10 +61,10 @@ struct ContentView: View {
 
             VisualEffectBlur(blurStyle: colorScheme == .dark ? .dark : .light)
                 .ignoresSafeArea()
-                .opacity(80.0)
-                .animation(.pulseAnimation, value: colorScheme)
+                .opacity(0.25)
+                .animation(.easeInOut(duration: 1.0), value: colorScheme)
 
-            VStack(spacing: 0) {
+            VStack(spacing: 12) {
                 HStack { Spacer() }
 
                 HeaderView(
@@ -89,9 +91,21 @@ struct ContentView: View {
                     cpuTDP: viewModel.cpuTDP,
                     animatePulse: $viewModel.animatePulse
                 )
-                .padding(.top, 20)
+                .padding(.bottom, 10.0)
 
                 DashboardView(viewModel: viewModel)
+
+                Divider() // Séparateur ajouté ici
+
+                // Logo à droite
+                HStack {
+                    Spacer()
+                    Image("Deepcool-logo-black")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 250, height: 200) // Ajustez la taille du logo selon vos besoins
+                }
+                .padding(.top, 5) // Espacement entre le contenu et l'image du logo
 
                 RefreshFooterView(animatePulse: $viewModel.animatePulse)
 
@@ -120,9 +134,9 @@ struct HeaderView: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
-                InfoRow(imageName: "DC CPU", label: "CPU", value: cpuModel, fontSize: 10)
-                InfoRow(imageName: "DC CPU", label: "Cœurs", value: "\(cpuCoreCount)", fontSize: 12)
-                InfoRow(imageName: "GPU", label: "GPU", value: gpuModel, fontSize: 10)
+                InfoRow(imageName: "DC CPU", label: "CPU", value: cpuModel, fontSize: 13)
+                InfoRow(imageName: "DC CPU", label: "Nombre De Cœurs", value: "\(cpuCoreCount)", fontSize: 13)
+                InfoRow(imageName: "GPU", label: "GPU", value: gpuModel, fontSize: 13)
             }
         }
         .frame(maxWidth: .infinity)
@@ -151,12 +165,12 @@ struct DigitalDisplayView: View {
                 HStack(spacing: 12) {
                      Image(systemName: "thermometer")
                           .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
-                        .font(.system(size: 48))
+                        .font(.system(size: 56))
                         .scaleEffect(animatePulse ? 1.1 : 1.0)
                         .animation(.bouncy, value: animatePulse)
 
                     Text("\(String(format: "%.0f", temperature))°C")
-                        .font(.custom("DS-Digital", size: 66))
+                        .font(.custom("DS-Digital", size: 70))
                         .foregroundColor(temperatureColor(temperature))
                         .multilineTextAlignment(.center)
                         .shadow(color: temperatureColor(temperature).opacity(0.6), radius: 6)
@@ -248,10 +262,9 @@ struct InfoMetricsWithProgress: View {
             MetricWithProgress(
                 title: "Température CPU",
                 iconName: "thermometer",
-                value: String(format: "%.1f °C", cpuTemperature),
-                progress: min(cpuTemperature / 100.0, 1.0),
-                progressColor: temperatureColor(cpuTemperature),
-                animatePulse: animatePulse
+                value: String(format: "%.1f°C", cpuTemperature),
+                progress: min(cpuTemperature / 100, 1.0),
+                progressColor: temperatureColor(cpuTemperature)
             )
 
             MetricWithProgress(
@@ -303,7 +316,22 @@ struct MetricWithProgress: View {
         .padding(10)
         .background(Color(.windowBackgroundColor).opacity(0.85))
         .cornerRadius(10)
-        .shadow(color: .gray.opacity(0.3), radius: 4)
+        .shadow(color: .black, radius: 4)
+    }
+}
+
+// MARK: - RefreshFooterView
+struct RefreshFooterView: View {
+    @Binding var animatePulse: Bool
+
+    var body: some View {
+        HStack {
+            Spacer()
+            Image(systemName: "arrow.clockwise")
+                .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
+            Spacer()
+        }
+        .padding(.bottom, -8.0)
     }
 }
 
@@ -323,13 +351,13 @@ struct DashboardView: View {
 
                 CircularProgressBar(
                     value: viewModel.ramUsed / viewModel.ramTotal,
-                    color: Color.green
+                    color: Color.yellow
                 )
                 .frame(width: 75, height: 75)
 
                 Text(String(format: "%.0f%%", viewModel.ramUsed / viewModel.ramTotal * 100))
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(Color.green)
+                    .font(.system(size: 25, weight: .bold))
+                    .foregroundColor(Color.blue)
                     .multilineTextAlignment(.center)
 
                 Spacer()
@@ -397,25 +425,12 @@ struct CircularProgressBar: View {
     }
 }
 
-// MARK: - RefreshFooterView
-struct RefreshFooterView: View {
-    @Binding var animatePulse: Bool
-
-    var body: some View {
-        HStack {
-            Spacer()
-             Image(systemName: "arrow.clockwise")
-                  .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
-            Spacer()
-        }
-        .padding(.top, 8)
-    }
-}
-
 // MARK: - Preview
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView(viewModel: ContentViewModel())
-            .preferredColorScheme(.dark)
+            .preferredColorScheme(.light)
+            .padding(.bottom)
+            .environment(\.sizeCategory, .large)
     }
 }
