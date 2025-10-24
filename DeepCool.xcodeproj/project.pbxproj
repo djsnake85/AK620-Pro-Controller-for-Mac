@@ -1,0 +1,659 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 70;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		42636C982D587D3D00471203 /* IntelPowerGadget.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42636C972D587D3D00471203 /* IntelPowerGadget.framework */; };
+		42636C992D587D3D00471203 /* IntelPowerGadget.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 42636C972D587D3D00471203 /* IntelPowerGadget.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		42636C9C2D58A78000471203 /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 42636C9B2D58A78000471203 /* Media.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		42C685952D56989000AEC89A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 42C6857B2D56988E00AEC89A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 42C685822D56988E00AEC89A;
+			remoteInfo = DeepCool;
+		};
+		42C6859F2D56989000AEC89A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 42C6857B2D56988E00AEC89A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 42C685822D56988E00AEC89A;
+			remoteInfo = DeepCool;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		42636C9A2D587D3D00471203 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				42636C992D587D3D00471203 /* IntelPowerGadget.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		42636C902D5873D500471203 /* DeepCool-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DeepCool-Bridging-Header.h"; sourceTree = "<group>"; };
+		42636C972D587D3D00471203 /* IntelPowerGadget.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IntelPowerGadget.framework; path = ../../../../Library/Frameworks/IntelPowerGadget.framework; sourceTree = "<group>"; };
+		42636C9B2D58A78000471203 /* Media.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Media.xcassets; sourceTree = "<group>"; };
+		42C685832D56988E00AEC89A /* DeepCool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepCool.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		42C685942D56989000AEC89A /* DeepCoolTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepCoolTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		42C6859E2D56989000AEC89A /* DeepCoolUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepCoolUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3D117A7D2E9A41DA00A4A991 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				"Preview Content/DS-DIGI.TTF",
+			);
+			target = 42C685822D56988E00AEC89A /* DeepCool */;
+		};
+		3D117A822E9A42B400A4A991 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"DC3-Cropped.png",
+				"Deepcool-logo-black.png",
+				"DS-DIGI.TTF",
+				"DS-DIGIB.TTF",
+				"Preview Content/GPU.jpg",
+			);
+			target = 42C685932D56989000AEC89A /* DeepCoolTests */;
+		};
+		3D117A832E9A42B400A4A991 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"DC3-Cropped.png",
+				"Deepcool-logo-black.png",
+				"DS-DIGI.TTF",
+				"DS-DIGIB.TTF",
+				"Preview Content/GPU.jpg",
+			);
+			target = 42C6859D2D56989000AEC89A /* DeepCoolUITests */;
+		};
+		3D117AA92E9A548300A4A991 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"DS-DIGIB.TTF",
+			);
+			target = 42C685932D56989000AEC89A /* DeepCoolTests */;
+		};
+		7CCAF11D2E836ED500C09A96 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 42C6859D2D56989000AEC89A /* DeepCoolUITests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		42C685852D56988E00AEC89A /* DeepCool */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (3D117A7D2E9A41DA00A4A991 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 3D117A822E9A42B400A4A991 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 3D117A832E9A42B400A4A991 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DeepCool; sourceTree = "<group>"; };
+		42C685972D56989000AEC89A /* DeepCoolTests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (3D117AA92E9A548300A4A991 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DeepCoolTests; sourceTree = "<group>"; };
+		42C685A12D56989000AEC89A /* DeepCoolUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (7CCAF11D2E836ED500C09A96 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DeepCoolUITests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		42C685802D56988E00AEC89A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				42636C982D587D3D00471203 /* IntelPowerGadget.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		42C685912D56989000AEC89A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		42C6859B2D56989000AEC89A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		42636C962D587D3C00471203 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				42636C972D587D3D00471203 /* IntelPowerGadget.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		42C6857A2D56988E00AEC89A = {
+			isa = PBXGroup;
+			children = (
+				42636C9B2D58A78000471203 /* Media.xcassets */,
+				42636C902D5873D500471203 /* DeepCool-Bridging-Header.h */,
+				42C685852D56988E00AEC89A /* DeepCool */,
+				42C685972D56989000AEC89A /* DeepCoolTests */,
+				42C685A12D56989000AEC89A /* DeepCoolUITests */,
+				42636C962D587D3C00471203 /* Frameworks */,
+				42C685842D56988E00AEC89A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		42C685842D56988E00AEC89A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				42C685832D56988E00AEC89A /* DeepCool.app */,
+				42C685942D56989000AEC89A /* DeepCoolTests.xctest */,
+				42C6859E2D56989000AEC89A /* DeepCoolUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		42C685822D56988E00AEC89A /* DeepCool */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 42C685A82D56989000AEC89A /* Build configuration list for PBXNativeTarget "DeepCool" */;
+			buildPhases = (
+				42C6857F2D56988E00AEC89A /* Sources */,
+				42C685802D56988E00AEC89A /* Frameworks */,
+				42C685812D56988E00AEC89A /* Resources */,
+				42636C9A2D587D3D00471203 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				42C685852D56988E00AEC89A /* DeepCool */,
+			);
+			name = DeepCool;
+			packageProductDependencies = (
+			);
+			productName = DeepCool;
+			productReference = 42C685832D56988E00AEC89A /* DeepCool.app */;
+			productType = "com.apple.product-type.application";
+		};
+		42C685932D56989000AEC89A /* DeepCoolTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 42C685AB2D56989000AEC89A /* Build configuration list for PBXNativeTarget "DeepCoolTests" */;
+			buildPhases = (
+				42C685902D56989000AEC89A /* Sources */,
+				42C685912D56989000AEC89A /* Frameworks */,
+				42C685922D56989000AEC89A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				42C685962D56989000AEC89A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				42C685972D56989000AEC89A /* DeepCoolTests */,
+			);
+			name = DeepCoolTests;
+			packageProductDependencies = (
+			);
+			productName = DeepCoolTests;
+			productReference = 42C685942D56989000AEC89A /* DeepCoolTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		42C6859D2D56989000AEC89A /* DeepCoolUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 42C685AE2D56989000AEC89A /* Build configuration list for PBXNativeTarget "DeepCoolUITests" */;
+			buildPhases = (
+				42C6859A2D56989000AEC89A /* Sources */,
+				42C6859B2D56989000AEC89A /* Frameworks */,
+				42C6859C2D56989000AEC89A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				42C685A02D56989000AEC89A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				42C685A12D56989000AEC89A /* DeepCoolUITests */,
+			);
+			name = DeepCoolUITests;
+			packageProductDependencies = (
+			);
+			productName = DeepCoolUITests;
+			productReference = 42C6859E2D56989000AEC89A /* DeepCoolUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		42C6857B2D56988E00AEC89A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					42C685822D56988E00AEC89A = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					42C685932D56989000AEC89A = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 42C685822D56988E00AEC89A;
+					};
+					42C6859D2D56989000AEC89A = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 42C685822D56988E00AEC89A;
+					};
+				};
+			};
+			buildConfigurationList = 42C6857E2D56988E00AEC89A /* Build configuration list for PBXProject "DeepCool" */;
+			compatibilityVersion = "Xcode 12.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 42C6857A2D56988E00AEC89A;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+			);
+			productRefGroup = 42C685842D56988E00AEC89A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				42C685822D56988E00AEC89A /* DeepCool */,
+				42C685932D56989000AEC89A /* DeepCoolTests */,
+				42C6859D2D56989000AEC89A /* DeepCoolUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		42C685812D56988E00AEC89A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				42636C9C2D58A78000471203 /* Media.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		42C685922D56989000AEC89A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		42C6859C2D56989000AEC89A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		42C6857F2D56988E00AEC89A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		42C685902D56989000AEC89A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		42C6859A2D56989000AEC89A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		42C685962D56989000AEC89A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 42C685822D56988E00AEC89A /* DeepCool */;
+			targetProxy = 42C685952D56989000AEC89A /* PBXContainerItemProxy */;
+		};
+		42C685A02D56989000AEC89A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 42C685822D56988E00AEC89A /* DeepCool */;
+			targetProxy = 42C6859F2D56989000AEC89A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		42C685A62D56989000AEC89A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				"LD_RUNPATH_SEARCH_PATHS[arch=*]" = "";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		42C685A72D56989000AEC89A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		42C685A92D56989000AEC89A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = DeepCool/DeepCool.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"DeepCool/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeepCool/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[arch=*]" = /Library/Frameworks;
+				"LIBRARY_SEARCH_PATHS[arch=*]" = /Library/Frameworks;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.djsnake85.DeepCoolUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				"SWIFT_OBJC_BRIDGING_HEADER[arch=*]" = "DeepCool-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		42C685AA2D56989000AEC89A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = DeepCool/DeepCool.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"DeepCool/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeepCool/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[arch=*]" = /Library/Frameworks;
+				"LIBRARY_SEARCH_PATHS[arch=*]" = /Library/Frameworks;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.djsnake85.DeepCoolUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				"SWIFT_OBJC_BRIDGING_HEADER[arch=*]" = "DeepCool-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		42C685AC2D56989000AEC89A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.djsnake85.DeepCoolUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeepCool.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DeepCool";
+			};
+			name = Debug;
+		};
+		42C685AD2D56989000AEC89A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.djsnake85.DeepCoolUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeepCool.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DeepCool";
+			};
+			name = Release;
+		};
+		42C685AF2D56989000AEC89A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeepCoolUITests/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.djsnake85.DeepCoolUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = DeepCool;
+			};
+			name = Debug;
+		};
+		42C685B02D56989000AEC89A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeepCoolUITests/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.djsnake85.DeepCoolUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = DeepCool;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		42C6857E2D56988E00AEC89A /* Build configuration list for PBXProject "DeepCool" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				42C685A62D56989000AEC89A /* Debug */,
+				42C685A72D56989000AEC89A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		42C685A82D56989000AEC89A /* Build configuration list for PBXNativeTarget "DeepCool" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				42C685A92D56989000AEC89A /* Debug */,
+				42C685AA2D56989000AEC89A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		42C685AB2D56989000AEC89A /* Build configuration list for PBXNativeTarget "DeepCoolTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				42C685AC2D56989000AEC89A /* Debug */,
+				42C685AD2D56989000AEC89A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		42C685AE2D56989000AEC89A /* Build configuration list for PBXNativeTarget "DeepCoolUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				42C685AF2D56989000AEC89A /* Debug */,
+				42C685B02D56989000AEC89A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 42C6857B2D56988E00AEC89A /* Project object */;
+}
