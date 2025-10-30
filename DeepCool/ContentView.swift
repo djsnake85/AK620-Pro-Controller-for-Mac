@@ -91,7 +91,7 @@ struct ContentView: View {
                     cpuTDP: viewModel.cpuTDP,
                     animatePulse: $viewModel.animatePulse
                 )
-                .padding(.bottom, 10.0)
+                .padding(.bottom, 5.0)
 
                 DashboardView(viewModel: viewModel)
 
@@ -165,12 +165,12 @@ struct DigitalDisplayView: View {
                 HStack(spacing: 12) {
                      Image(systemName: "thermometer")
                           .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
-                        .font(.system(size: 56))
+                        .font(.system(size: 54))
                         .scaleEffect(animatePulse ? 1.1 : 1.0)
                         .animation(.bouncy, value: animatePulse)
 
                     Text("\(String(format: "%.0f", temperature))°C")
-                        .font(.custom("DS-Digital", size: 70))
+                        .font(.custom("DS-Digital", size: 78))
                         .foregroundColor(temperatureColor(temperature))
                         .multilineTextAlignment(.center)
                         .shadow(color: temperatureColor(temperature).opacity(0.6), radius: 6)
@@ -272,7 +272,7 @@ struct InfoMetricsWithProgress: View {
                 iconName: "bolt.fill",
                 value: String(format: "%.1f W", cpuTDP),
                 progress: min(cpuTDP / 150.0, 1.0),
-                progressColor: .orange
+                progressColor: .green
             )
         }
         .padding(.top, 20)
@@ -357,7 +357,7 @@ struct DashboardView: View {
 
                 Text(String(format: "%.0f%%", viewModel.ramUsed / viewModel.ramTotal * 100))
                     .font(.system(size: 25, weight: .bold))
-                    .foregroundColor(Color.blue)
+                    .foregroundColor(Color.yellow)
                     .multilineTextAlignment(.center)
 
                 Spacer()
