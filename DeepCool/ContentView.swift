@@ -170,16 +170,17 @@ struct DigitalDisplayView: View {
                         .animation(.bouncy, value: animatePulse)
 
                     Text("\(String(format: "%.0f", temperature))°C")
-                        .font(.custom("DS-Digital", size: 78))
+                        .font(.custom("DS-Digital", size: 80))
                         .foregroundColor(temperatureColor(temperature))
                         .multilineTextAlignment(.center)
                         .shadow(color: temperatureColor(temperature).opacity(0.6), radius: 6)
                 }
 
                 HStack(spacing: 20) {
-                    DigitalSubMetric(label: "FREQ", value: String(format: "%.2f GHz", frequency), fontSize: 44)
                     DigitalSubMetric(label: "USAGE", value: String(format: "%.0f %%", usage), fontSize: 44)
                     DigitalSubMetric(label: "POWER", value: String(format: "%.1f W", power), fontSize: 44)
+                    DigitalSubMetric(label: "FREQ", value: String(format: "%.2f GHz", frequency), fontSize: 44)
+                    
                 }
             }
             .padding(.horizontal, 5)
