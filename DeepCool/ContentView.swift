@@ -180,7 +180,6 @@ struct DigitalDisplayView: View {
                     DigitalSubMetric(label: "USAGE", value: String(format: "%.0f %%", usage), fontSize: 44)
                     DigitalSubMetric(label: "POWER", value: String(format: "%.1f W", power), fontSize: 44)
                     DigitalSubMetric(label: "FREQ", value: String(format: "%.2f GHz", frequency), fontSize: 44)
-                    
                 }
             }
             .padding(.horizontal, 5)
@@ -352,13 +351,13 @@ struct DashboardView: View {
 
                 CircularProgressBar(
                     value: viewModel.ramUsed / viewModel.ramTotal,
-                    color: Color.yellow
+                    color: Color.blue
                 )
                 .frame(width: 75, height: 75)
 
                 Text(String(format: "%.0f%%", viewModel.ramUsed / viewModel.ramTotal * 100))
                     .font(.system(size: 25, weight: .bold))
-                    .foregroundColor(Color.yellow)
+                    .foregroundColor(Color.green)
                     .multilineTextAlignment(.center)
 
                 Spacer()
