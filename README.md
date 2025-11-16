@@ -32,6 +32,8 @@ L'application est également compatible avec l'affichage d'autres informations t
    git clone https://github.com/votre-utilisateur/DeepCool-AK620-Controller.git
    
 <img width="1024" height="1024" alt="Deepcool" src="https://github.com/user-attachments/assets/837739a2-c45d-4aff-87f9-f3926a95d331" />
-<img width="793" height="1086" alt="AK620 Digital Pro" src="https://github.com/user-attachments/assets/aea6ce51-412c-4835-9ea7-b274a7f50d01" />
+
+<img width="874" height="1086" alt="AK620 B" src="https://github.com/user-attachments/assets/f698e6a3-be61-4482-b9ce-b6fa76b1ea06" />
+<img width="874" height="1086" alt="AK620 W" src="https://github.com/user-attachments/assets/cb5cecbd-1695-4538-9ce4-5bbb5a5c42df" />
 
 

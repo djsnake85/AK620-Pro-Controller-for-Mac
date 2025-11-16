@@ -3,9 +3,9 @@ import SwiftUI
 import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    
-    private var viewModel: ContentViewModel?
-    
+
+    private var viewModel: ContentViewModel!
+
     var statusItem: NSStatusItem!
     var cpuTempMenuItem: NSMenuItem!
     var cpuUsageMenuItem: NSMenuItem!
@@ -14,24 +14,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var mainWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
+    private var pulseTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 1️⃣ Créer le ViewModel avant tout
+        viewModel = ContentViewModel()
+
+        // 2️⃣ Configurer le menu de la barre de statut
         setupStatusBarMenu()
-        
-        let viewModel = ContentViewModel()
-        self.viewModel = viewModel
-        
+
+        // 3️⃣ Créer la fenêtre principale
         createMainWindowIfNeeded()
-        setupBindings(with: viewModel)
-        
+
+        // 4️⃣ Lier les données du ViewModel à la barre de statut
+        setupBindings()
+
+        // 5️⃣ Lancer le timer de pulsation
+        setupStatusPulseAnimation()
+
+        // 6️⃣ Afficher la fenêtre et activer l'app
         mainWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         toggleWindowMenuItem.title = "Masquer la fenêtre"
     }
 
+    // MARK: - Barre de statut
     func setupStatusBarMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        
+
         if let button = statusItem.button {
             if let icon = NSImage(named: NSImage.Name("Deepcool 16")) {
                 button.image = icon
@@ -59,34 +69,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem.menu = menu
     }
 
+    // MARK: - Fenêtre principale
     func createMainWindowIfNeeded() {
-        if mainWindow == nil {
-            let contentView = ContentView(viewModel: viewModel ?? ContentViewModel())
+        guard mainWindow == nil else { return }
 
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 400, height: 600),
-                styleMask: [.titled, .closable, .resizable],
-                backing: .buffered, defer: false)
-            window.center()
-            window.setFrameAutosaveName("Main Window")
-            
-            // Titre de la fenêtre personnalisé
-            window.title = "DEEPCOOL AK620 DIGITAL PRO"
-            
-            window.contentView = NSHostingView(rootView: contentView)
+        let contentView = ContentView(viewModel: self.viewModel)
 
-            window.delegate = self
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 600),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered, defer: false)
+        window.center()
+        window.setFrameAutosaveName("Main Window")
+        window.title = "DEEPCOOL AK620 DIGITAL PRO"
+        window.contentView = NSHostingView(rootView: contentView)
+        window.delegate = self
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        window.level = .floating
 
-            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-            window.level = .floating
-
-            mainWindow = window
-        }
+        mainWindow = window
     }
 
     @objc func toggleWindow() {
         createMainWindowIfNeeded()
         guard let window = mainWindow else { return }
+
         if window.isVisible {
             window.orderOut(nil)
             toggleWindowMenuItem.title = "Afficher la fenêtre"
@@ -103,7 +110,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         return false
     }
 
-    private func setupBindings(with viewModel: ContentViewModel) {
+    // MARK: - Bindings Combine
+    private func setupBindings() {
         cancellables.forEach { $0.cancel() }
         cancellables.removeAll()
 
@@ -116,19 +124,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .store(in: &cancellables)
     }
 
+    // MARK: - Mise à jour de la barre de statut
     private func updateStatus(temp: Double, usage: Double, frequency: Double) {
         let tempFormatted = String(format: "%.1f", temp)
         let usageFormatted = String(format: "%.1f", usage)
         let freqFormatted = String(format: "%.2f", frequency)
 
-        self.cpuFreqMenuItem.title = "Fréquence CPU: \(freqFormatted) GHz"
-        self.cpuTempMenuItem.title = "Temp CPU: \(tempFormatted)°C"
-        self.cpuUsageMenuItem.title = "Usage CPU: \(usageFormatted)%"
+        cpuFreqMenuItem.title = "Fréquence CPU: \(freqFormatted) GHz"
+        cpuTempMenuItem.title = "Temp CPU: \(tempFormatted)°C"
+        cpuUsageMenuItem.title = "Usage CPU: \(usageFormatted)%"
 
-        guard let button = self.statusItem.button else { return }
+        guard let button = statusItem.button else { return }
 
-        let statusText = "CPU INFO - \(freqFormatted) GHz - \(tempFormatted)°C - \(usageFormatted)%"
-
+        let statusText = "CPU Info : \(freqFormatted) GHz - \(tempFormatted)°C - \(usageFormatted)%"
         let color: NSColor
         if temp > 75 {
             color = .red
@@ -147,6 +155,49 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 .font: NSFont.systemFont(ofSize: 14, weight: .bold)
             ]
         )
+    }
+
+    // MARK: - Animation de pulsation du texte
+    private func setupStatusPulseAnimation() {
+        guard let button = statusItem.button else { return }
+
+        var increasingAlpha = true
+        var currentAlpha: CGFloat = 1.0
+
+        pulseTimer?.invalidate()
+        pulseTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+
+            currentAlpha += increasingAlpha ? -0.1 : 0.1
+            if currentAlpha <= 0.4 {
+                currentAlpha = 0.4
+                increasingAlpha = false
+            } else if currentAlpha >= 1.0 {
+                currentAlpha = 1.0
+                increasingAlpha = true
+            }
+
+            let text = button.attributedTitle.string
+
+            let color: NSColor
+            if self.viewModel.cpuTemperature > 75 {
+                color = NSColor.red.withAlphaComponent(currentAlpha)
+            } else if self.viewModel.cpuTemperature >= 65 {
+                color = NSColor.orange.withAlphaComponent(currentAlpha)
+            } else {
+                color = NSColor.systemGreen.withAlphaComponent(currentAlpha)
+            }
+
+            let attrTitle = NSAttributedString(
+                string: text,
+                attributes: [
+                    .foregroundColor: color,
+                    .font: NSFont.systemFont(ofSize: 14, weight: .bold)
+                ]
+            )
+
+            button.attributedTitle = attrTitle
+        }
     }
 }
 

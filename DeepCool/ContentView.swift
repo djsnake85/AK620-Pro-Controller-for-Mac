@@ -1,4 +1,4 @@
-//Djsnake85
+// Djsnake85
 
 import SwiftUI
 import AppKit
@@ -46,11 +46,10 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // Fond dynamique clair / sombre avec animation
             LinearGradient(
                 gradient: Gradient(
                     colors: colorScheme == .dark
-                        ? [.black, .gray.opacity(0.9)]
+                        ? [Color(red: 0.15, green: 0.15, blue: 0.15), Color(red: 0.25, green: 0.25, blue: 0.25)]
                         : [.white, .gray.opacity(0.1)]
                 ),
                 startPoint: .topLeading,
@@ -64,7 +63,7 @@ struct ContentView: View {
                 .opacity(0.25)
                 .animation(.easeInOut(duration: 1.0), value: colorScheme)
 
-            VStack(spacing: 12) {
+            VStack(spacing: 16) {
                 HStack { Spacer() }
 
                 HeaderView(
@@ -73,7 +72,7 @@ struct ContentView: View {
                     gpuModel: viewModel.gpuModel,
                     animateTitle: $viewModel.animateTitle
                 )
-                .padding(.top, 4)
+                .padding(.top, 6)
 
                 DigitalDisplayView(
                     temperature: viewModel.cpuTemperature,
@@ -82,7 +81,7 @@ struct ContentView: View {
                     frequency: viewModel.cpuFrequency,
                     animatePulse: $viewModel.animatePulse
                 )
-                .padding(.top, 12)
+                .padding(.top, 14)
 
                 InfoMetricsWithProgress(
                     cpuFrequency: viewModel.cpuFrequency,
@@ -91,28 +90,27 @@ struct ContentView: View {
                     cpuTDP: viewModel.cpuTDP,
                     animatePulse: $viewModel.animatePulse
                 )
-                .padding(.bottom, 5.0)
+                .padding(.bottom, 8.0)
 
                 DashboardView(viewModel: viewModel)
 
-                Divider() // Séparateur ajouté ici
+                Divider()
 
-                // Logo à droite
                 HStack {
                     Spacer()
                     Image("Deepcool-logo-black")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 250, height: 200) // Ajustez la taille du logo selon vos besoins
+                        .frame(width: 270, height: 220)
                 }
-                .padding(.top, 5) // Espacement entre le contenu et l'image du logo
+                .padding(.top, 8)
 
                 RefreshFooterView(animatePulse: $viewModel.animatePulse)
 
                 Spacer()
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .onAppear {
                 viewModel.startUpdates()
                 withAnimation(.easeInOut(duration: 1.0)) {
@@ -132,11 +130,11 @@ struct HeaderView: View {
     @Binding var animateTitle: Bool
 
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                InfoRow(imageName: "DC CPU", label: "CPU", value: cpuModel, fontSize: 13)
-                InfoRow(imageName: "DC CPU", label: "Nombre De Cœurs", value: "\(cpuCoreCount)", fontSize: 13)
-                InfoRow(imageName: "GPU", label: "GPU", value: gpuModel, fontSize: 13)
+        VStack(spacing: 12) {
+            HStack(spacing: 14) {
+                InfoRow(imageName: "DC CPU", label: "Processeur", value: cpuModel, fontSize: 18)
+                InfoRow(imageName: "DC CPU", label: "Cœurs", value: "\(cpuCoreCount)", fontSize: 18)
+                InfoRow(imageName: "GPU", label: "GPU", value: gpuModel, fontSize: 18)
             }
         }
         .frame(maxWidth: .infinity)
@@ -161,31 +159,31 @@ struct DigitalDisplayView: View {
                 )
                 .shadow(color: .black.opacity(0.1), radius: 8)
 
-            VStack(spacing: 10) {
-                HStack(spacing: 12) {
-                     Image(systemName: "thermometer")
-                          .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
-                        .font(.system(size: 54))
+            VStack(spacing: 12) {
+                HStack(spacing: 14) {
+                    Image(systemName: "thermometer")
+                        .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
+                        .font(.system(size: 60))
                         .scaleEffect(animatePulse ? 1.1 : 1.0)
                         .animation(.bouncy, value: animatePulse)
 
                     Text("\(String(format: "%.0f", temperature))°C")
-                        .font(.custom("DS-Digital", size: 80))
+                        .font(.custom("DS-Digital", size: 90))
                         .foregroundColor(temperatureColor(temperature))
                         .multilineTextAlignment(.center)
                         .shadow(color: temperatureColor(temperature).opacity(0.6), radius: 6)
                 }
 
-                HStack(spacing: 20) {
-                    DigitalSubMetric(label: "USAGE", value: String(format: "%.0f %%", usage), fontSize: 44)
-                    DigitalSubMetric(label: "POWER", value: String(format: "%.1f W", power), fontSize: 44)
-                    DigitalSubMetric(label: "FREQ", value: String(format: "%.2f GHz", frequency), fontSize: 44)
+                HStack(spacing: 24) {
+                    DigitalSubMetric(label: "USAGE", value: String(format: "%.0f %%", usage), fontSize: 50)
+                    DigitalSubMetric(label: "POWER", value: String(format: "%.1f W", power), fontSize: 50)
+                    DigitalSubMetric(label: "FREQ", value: String(format: "%.2f GHz", frequency), fontSize: 50)
                 }
             }
-            .padding(.horizontal, 5)
+            .padding(.horizontal, 8)
         }
         .padding(.horizontal)
-        .frame(height: 140)
+        .frame(height: 160)
         .onAppear { animatePulse = true }
     }
 }
@@ -194,18 +192,18 @@ struct DigitalDisplayView: View {
 struct DigitalSubMetric: View {
     var label: String
     var value: String
-    var fontSize: CGFloat = 22
+    var fontSize: CGFloat = 28
 
     var body: some View {
         VStack {
             Text(label)
-                .font(.caption)
+                .font(.headline)
                 .foregroundColor(.secondary)
             Text(value)
                 .font(.custom("DS-Digital", size: fontSize))
                 .foregroundColor(.primary)
         }
-        .frame(minWidth: 60)
+        .frame(minWidth: 70)
     }
 }
 
@@ -217,19 +215,19 @@ struct InfoRow: View {
     var fontSize: CGFloat
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(imageName)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 40, height: 40)
-            Text("\(label) : \(value)")
+                .frame(width: 45, height: 45)
+            Text("\(label): \(value)")
                 .font(.system(size: fontSize, weight: .bold))
                 .foregroundColor(.primary)
         }
-        .padding(12)
-        .background(Color(.windowBackgroundColor).opacity(0.7))
-        .cornerRadius(10)
-        .shadow(color: .black.opacity(0.1), radius: 2)
+        .padding(14)
+        .background(Color(.windowBackgroundColor).opacity(0.75))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.15), radius: 3)
     }
 }
 
@@ -242,13 +240,14 @@ struct InfoMetricsWithProgress: View {
     @Binding var animatePulse: Bool
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             MetricWithProgress(
                 title: "Fréquence CPU",
                 iconName: "cpu",
                 value: String(format: "%.2f GHz", cpuFrequency),
                 progress: min(cpuFrequency / 5.0, 1.0),
-                progressColor: .green
+                progressColor: .green,
+                animatePulse: animatePulse
             )
 
             MetricWithProgress(
@@ -256,7 +255,8 @@ struct InfoMetricsWithProgress: View {
                 iconName: "speedometer",
                 value: String(format: "%.1f %%", cpuUsage),
                 progress: cpuUsage / 100,
-                progressColor: usageColor(cpuUsage)
+                progressColor: usageColor(cpuUsage),
+                animatePulse: animatePulse
             )
 
             MetricWithProgress(
@@ -264,7 +264,8 @@ struct InfoMetricsWithProgress: View {
                 iconName: "thermometer",
                 value: String(format: "%.1f°C", cpuTemperature),
                 progress: min(cpuTemperature / 100, 1.0),
-                progressColor: temperatureColor(cpuTemperature)
+                progressColor: temperatureColor(cpuTemperature),
+                animatePulse: animatePulse
             )
 
             MetricWithProgress(
@@ -272,10 +273,11 @@ struct InfoMetricsWithProgress: View {
                 iconName: "bolt.fill",
                 value: String(format: "%.1f W", cpuTDP),
                 progress: min(cpuTDP / 150.0, 1.0),
-                progressColor: .green
+                progressColor: .green,
+                animatePulse: animatePulse
             )
         }
-        .padding(.top, 20)
+        .padding(.top, 24)
     }
 }
 
@@ -289,12 +291,12 @@ struct MetricWithProgress: View {
     var animatePulse: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
                 Image(systemName: iconName)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 20, height: 20)
+                    .frame(width: 22, height: 22)
                     .foregroundColor(progressColor.opacity(animatePulse ? 1 : 0.6))
                     .scaleEffect(animatePulse ? 1.2 : 1.0)
                     .animation(.bouncy, value: animatePulse)
@@ -304,19 +306,19 @@ struct MetricWithProgress: View {
                     .foregroundColor(.primary)
                 Spacer()
                 Text(value)
-                    .font(.custom("DS-Digital", size: 20))
+                    .font(.custom("DS-Digital", size: 24))
                     .foregroundColor(progressColor)
             }
 
             ProgressView(value: progress)
                 .progressViewStyle(.linear)
-                .frame(height: 8)
-                .cornerRadius(4)
+                .frame(height: 10)
+                .cornerRadius(5)
         }
-        .padding(10)
+        .padding(12)
         .background(Color(.windowBackgroundColor).opacity(0.85))
-        .cornerRadius(10)
-        .shadow(color: .black, radius: 4)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.15), radius: 5)
     }
 }
 
@@ -329,9 +331,10 @@ struct RefreshFooterView: View {
             Spacer()
             Image(systemName: "arrow.clockwise")
                 .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
+                .font(.title2)
             Spacer()
         }
-        .padding(.bottom, -8.0)
+        .padding(.bottom, -6.0)
     }
 }
 
@@ -340,8 +343,8 @@ struct DashboardView: View {
     @ObservedObject var viewModel: ContentViewModel
 
     var body: some View {
-        VStack(spacing: 20) {
-            HStack(spacing: 20) {
+        VStack(spacing: 24) {
+            HStack(spacing: 24) {
                 MetricView(
                     title: "RAM utilisée",
                     iconName: "memorychip.fill",
@@ -353,11 +356,11 @@ struct DashboardView: View {
                     value: viewModel.ramUsed / viewModel.ramTotal,
                     color: Color.blue
                 )
-                .frame(width: 75, height: 75)
+                .frame(width: 90, height: 90)
 
                 Text(String(format: "%.0f%%", viewModel.ramUsed / viewModel.ramTotal * 100))
-                    .font(.system(size: 25, weight: .bold))
-                    .foregroundColor(Color.green)
+                    .font(.title2)
+                    .foregroundColor(.green)
                     .multilineTextAlignment(.center)
 
                 Spacer()
@@ -369,9 +372,9 @@ struct DashboardView: View {
                     valueColor: .blue
                 )
             }
-            .padding(.top, 12)
+            .padding(.top, 14)
         }
-        .padding(.top, 8)
+        .padding(.top, 10)
     }
 }
 
@@ -383,23 +386,23 @@ struct MetricView: View {
     var valueColor: Color
 
     var body: some View {
-         VStack(alignment: .center, spacing: 4) {
+        VStack(alignment: .center, spacing: 6) {
             HStack {
                 Image(systemName: iconName)
                     .foregroundColor(.primary)
                 Text(title)
                     .foregroundColor(.secondary)
+                    .font(.headline)
             }
             Text(value)
-                   .font(.headline)
-                   .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
-                   .multilineTextAlignment(.center)
-                
+                .font(.title3)
+                .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
+                .multilineTextAlignment(.center)
         }
-        .padding(10)
+        .padding(12)
         .background(Color(.windowBackgroundColor).opacity(0.85))
-        .cornerRadius(10)
-        .shadow(color: .gray.opacity(0.3), radius: 4)
+        .cornerRadius(12)
+        .shadow(color: .gray.opacity(0.3), radius: 5)
     }
 }
 
@@ -411,13 +414,13 @@ struct CircularProgressBar: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(lineWidth: 8)
+                .stroke(lineWidth: 10)
                 .opacity(0.2)
                 .foregroundColor(color)
 
             Circle()
                 .trim(from: 0, to: CGFloat(min(value, 1.0)))
-                .stroke(style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
+                .stroke(style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
                 .foregroundColor(color)
                 .rotationEffect(Angle(degrees: -90))
                 .animation(.bouncy, value: value)
