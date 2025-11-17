@@ -101,11 +101,9 @@ struct ContentView: View {
                     Image("Deepcool-logo-black")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 270, height: 220)
+                        .frame(width: 200, height: 150)
                 }
-                .padding(.top, 8)
-
-                RefreshFooterView(animatePulse: $viewModel.animatePulse)
+                .padding(.top, 2)
 
                 Spacer()
             }
@@ -132,9 +130,9 @@ struct HeaderView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 14) {
-                InfoRow(imageName: "DC CPU", label: "Processeur", value: cpuModel, fontSize: 18)
-                InfoRow(imageName: "DC CPU", label: "Cœurs", value: "\(cpuCoreCount)", fontSize: 18)
-                InfoRow(imageName: "GPU", label: "GPU", value: gpuModel, fontSize: 18)
+                InfoRow(imageName: "DC CPU", label: "Processeur", value: cpuModel, fontSize: 14)
+                InfoRow(imageName: "DC CPU", label: "Cœurs", value: "\(cpuCoreCount)", fontSize: 14)
+                InfoRow(imageName: "GPU", label: "GPU", value: gpuModel, fontSize: 14)
             }
         }
         .frame(maxWidth: .infinity)
@@ -322,22 +320,6 @@ struct MetricWithProgress: View {
     }
 }
 
-// MARK: - RefreshFooterView
-struct RefreshFooterView: View {
-    @Binding var animatePulse: Bool
-
-    var body: some View {
-        HStack {
-            Spacer()
-            Image(systemName: "arrow.clockwise")
-                .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
-                .font(.title2)
-            Spacer()
-        }
-        .padding(.bottom, -6.0)
-    }
-}
-
 // MARK: - DashboardView
 struct DashboardView: View {
     @ObservedObject var viewModel: ContentViewModel
@@ -396,7 +378,7 @@ struct MetricView: View {
             }
             Text(value)
                 .font(.title3)
-                .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
+                .foregroundColor(valueColor)
                 .multilineTextAlignment(.center)
         }
         .padding(12)
