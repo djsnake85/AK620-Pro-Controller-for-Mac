@@ -1,3 +1,4 @@
+
 //
 // ContentView.swift
 // DeepCoolStyleDashboard - version finale (adaptatif mode clair/sombre)
@@ -14,36 +15,21 @@ fileprivate func temperatureColor(_ temp: Double) -> Color {
     else { return deepTeal }
 }
 
-// ---------- Blur Wrapper ----------
-struct VisualEffectBlur: NSViewRepresentable {
-    var blurStyle: NSVisualEffectView.Material
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = blurStyle
-        view.blendingMode = .behindWindow
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = blurStyle
-    }
-}
-
-// ---------- InfoCard with Blur ----------
+// ---------- InfoCard sans transparence ----------
 struct InfoCard<Content: View>: View {
     let content: Content
     init(@ViewBuilder content: () -> Content) { self.content = content() }
 
     var body: some View {
         ZStack {
-            VisualEffectBlur(blurStyle: .hudWindow)
-                .cornerRadius(12)
+            // Fond opaque
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(NSColor.windowBackgroundColor))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(Color(NSColor.separatorColor).opacity(0.25), lineWidth: 1)
                 )
+
             content
                 .padding(18)
         }
@@ -285,7 +271,7 @@ struct MemoryCard: View {
                         .frame(height: 36)
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color(NSColor.windowBackgroundColor)))
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(deepTeal.opacity(0.7))
+                        .fill(deepTeal)
                         .frame(width: CGFloat(usagePercent) * 300, height: 36)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
@@ -323,7 +309,7 @@ struct DiskCard: View {
                         .frame(height: 36)
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color(NSColor.windowBackgroundColor)))
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(deepTeal.opacity(0.6))
+                        .fill(deepTeal)
                         .frame(width: CGFloat(usagePercent) * 300, height: 36)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
@@ -418,4 +404,3 @@ struct ContentView_Previews: PreviewProvider {
         }
     }
 }
-
