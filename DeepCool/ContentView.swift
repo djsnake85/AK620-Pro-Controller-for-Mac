@@ -1,23 +1,20 @@
-// Djsnake85
+//
+// ContentView.swift
+// DeepCoolStyleDashboard - version finale (adaptatif mode clair/sombre)
+//
 
 import SwiftUI
 import AppKit
-import Foundation
 
-// MARK: - Couleurs dynamiques
-func temperatureColor(_ temp: Double) -> Color {
+fileprivate let deepTeal = Color(red: 0.031, green: 0.659, blue: 0.54)
+
+fileprivate func temperatureColor(_ temp: Double) -> Color {
     if temp > 75 { return .red }
     else if temp >= 65 { return .orange }
-    else { return .green }
+    else { return deepTeal }
 }
 
-func usageColor(_ usage: Double) -> Color {
-    if usage > 75 { return .red }
-    else if usage >= 50 { return .orange }
-    else { return .green }
-}
-
-// MARK: - Blur effect
+// ---------- Blur Wrapper ----------
 struct VisualEffectBlur: NSViewRepresentable {
     var blurStyle: NSVisualEffectView.Material
 
@@ -34,388 +31,391 @@ struct VisualEffectBlur: NSViewRepresentable {
     }
 }
 
-// MARK: - ContentView principal
+// ---------- InfoCard with Blur ----------
+struct InfoCard<Content: View>: View {
+    let content: Content
+    init(@ViewBuilder content: () -> Content) { self.content = content() }
+
+    var body: some View {
+        ZStack {
+            VisualEffectBlur(blurStyle: .hudWindow)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(NSColor.separatorColor).opacity(0.25), lineWidth: 1)
+                )
+            content
+                .padding(18)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// ---------- ContentView ----------
 struct ContentView: View {
     @StateObject private var viewModel: ContentViewModel
-    @Environment(\.colorScheme) var colorScheme
-    @State private var animateBackground: Bool = false
 
-    init(viewModel: ContentViewModel) {
+    init(viewModel: ContentViewModel = ContentViewModel()) {
         self._viewModel = StateObject(wrappedValue: viewModel)
     }
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                gradient: Gradient(
-                    colors: colorScheme == .dark
-                        ? [Color(red: 0.15, green: 0.15, blue: 0.15), Color(red: 0.25, green: 0.25, blue: 0.25)]
-                        : [.white, .gray.opacity(0.1)]
-                ),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            .animation(.easeInOut(duration: 1.0), value: colorScheme)
+        HStack(spacing: 0) {
+            SidebarView()
+                .frame(width: 72)
+                .background(Color(NSColor.windowBackgroundColor))
+                .overlay(Rectangle().frame(width: 1)
+                            .foregroundColor(Color(NSColor.separatorColor).opacity(0.3)), alignment: .trailing)
 
-            VisualEffectBlur(blurStyle: colorScheme == .dark ? .dark : .light)
-                .ignoresSafeArea()
-                .opacity(0.25)
-                .animation(.easeInOut(duration: 1.0), value: colorScheme)
+            ZStack {
+                Color(NSColor.windowBackgroundColor)
+                    .ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                HStack { Spacer() }
+                ScrollView {
+                    VStack(spacing: 18) {
+                        Spacer().frame(height: 12)
 
-                HeaderView(
-                    cpuModel: viewModel.cpuModel,
-                    cpuCoreCount: viewModel.cpuCoreCount,
-                    gpuModel: viewModel.gpuModel,
-                    animateTitle: $viewModel.animateTitle
-                )
-                .padding(.top, 6)
+                        // --- CPU & GPU ---
+                        HStack(spacing: 18) {
+                            CPUCard(
+                                cpuModel: viewModel.cpuModel,
+                                cpuCoreCount: viewModel.cpuCoreCount,
+                                cpuFrequencyMHz: viewModel.cpuFrequency,
+                                cpuTemp: viewModel.cpuTemperature,
+                                cpuUsagePercent: viewModel.cpuUsage,
+                                cpuTDP: viewModel.cpuTDP
+                            )
+                            .frame(maxWidth: .infinity)
 
-                DigitalDisplayView(
-                    temperature: viewModel.cpuTemperature,
-                    usage: viewModel.cpuUsage,
-                    power: viewModel.cpuTDP,
-                    frequency: viewModel.cpuFrequency,
-                    animatePulse: $viewModel.animatePulse
-                )
-                .padding(.top, 14)
+                            GPUCardSimple(
+                                gpuModel: viewModel.gpuModel,
+                                gpuVRAM: viewModel.gpuVRAM
+                            )
+                            .frame(maxWidth: .infinity)
+                        }
+                        .padding(.horizontal, 18)
 
-                InfoMetricsWithProgress(
-                    cpuFrequency: viewModel.cpuFrequency,
-                    cpuUsage: viewModel.cpuUsage,
-                    cpuTemperature: viewModel.cpuTemperature,
-                    cpuTDP: viewModel.cpuTDP,
-                    animatePulse: $viewModel.animatePulse
-                )
-                .padding(.bottom, 8.0)
+                        // --- RAM & Disk ---
+                        HStack(spacing: 18) {
+                            MemoryCard(
+                                ramUsed: viewModel.ramUsed,
+                                ramTotal: viewModel.ramTotal,
+                                ramFreqMHz: viewModel.ramFrequency
+                            )
+                            .frame(maxWidth: .infinity)
 
-                DashboardView(viewModel: viewModel)
+                            DiskCard(
+                                diskUsed: viewModel.diskUsed,
+                                diskTotal: viewModel.diskTotal
+                            )
+                            .frame(maxWidth: .infinity)
+                        }
+                        .padding(.horizontal, 18)
 
-                Divider()
+                        // --- Network ---
+                        HStack(spacing: 18) {
+                            NetworkCard(
+                                networkUploadSpeed: viewModel.networkUploadSpeed,
+                                networkDownloadSpeed: viewModel.networkDownloadSpeed
+                            )
+                            .frame(maxWidth: .infinity)
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 28)
 
-                HStack {
-                    Spacer()
-                    Image("Deepcool-logo-black")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 200, height: 150)
+                        // --- Logo ---
+                        HStack {
+                            Spacer()
+                            Image("Deepcool-logo-black")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 200, height: 80)
+                                .padding(.trailing, 4)
+                        }
+                        .padding(.horizontal, 18)
+                    }
+                    .padding(.top, 8)
                 }
-                .padding(.top, 2)
-
-                Spacer()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .onAppear {
-                viewModel.startUpdates()
-                withAnimation(.easeInOut(duration: 1.0)) {
-                    animateBackground = true
-                }
-            }
-            .onDisappear { viewModel.stopUpdates() }
         }
+        .onAppear { viewModel.startUpdates() }
+        .onDisappear { viewModel.stopUpdates() }
     }
 }
 
-// MARK: - HeaderView
-struct HeaderView: View {
-    var cpuModel: String
-    var cpuCoreCount: Int
-    var gpuModel: String
-    @Binding var animateTitle: Bool
-
+// ---------- Sidebar ----------
+struct SidebarView: View {
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 14) {
-                InfoRow(imageName: "DC CPU", label: "Processeur", value: cpuModel, fontSize: 14)
-                InfoRow(imageName: "DC CPU", label: "Cœurs", value: "\(cpuCoreCount)", fontSize: 14)
-                InfoRow(imageName: "GPU", label: "GPU", value: gpuModel, fontSize: 14)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - DigitalDisplayView
-struct DigitalDisplayView: View {
-    var temperature: Double
-    var usage: Double
-    var power: Double
-    var frequency: Double
-    @Binding var animatePulse: Bool
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.windowBackgroundColor).opacity(0.85))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.1), radius: 8)
-
-            VStack(spacing: 12) {
-                HStack(spacing: 14) {
-                    Image(systemName: "thermometer")
-                        .foregroundColor(Color(red: 0.031, green: 0.659, blue: 0.54))
-                        .font(.system(size: 60))
-                        .scaleEffect(animatePulse ? 1.1 : 1.0)
-                        .animation(.bouncy, value: animatePulse)
-
-                    Text("\(String(format: "%.0f", temperature))°C")
-                        .font(.custom("DS-Digital", size: 90))
-                        .foregroundColor(temperatureColor(temperature))
-                        .multilineTextAlignment(.center)
-                        .shadow(color: temperatureColor(temperature).opacity(0.6), radius: 6)
-                }
-
-                HStack(spacing: 24) {
-                    DigitalSubMetric(label: "USAGE", value: String(format: "%.0f %%", usage), fontSize: 50)
-                    DigitalSubMetric(label: "POWER", value: String(format: "%.1f W", power), fontSize: 50)
-                    DigitalSubMetric(label: "FREQ", value: String(format: "%.2f GHz", frequency), fontSize: 50)
-                }
-            }
-            .padding(.horizontal, 8)
-        }
-        .padding(.horizontal)
-        .frame(height: 160)
-        .onAppear { animatePulse = true }
-    }
-}
-
-// MARK: - DigitalSubMetric
-struct DigitalSubMetric: View {
-    var label: String
-    var value: String
-    var fontSize: CGFloat = 28
-
-    var body: some View {
-        VStack {
-            Text(label)
-                .font(.headline)
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.custom("DS-Digital", size: fontSize))
-                .foregroundColor(.primary)
-        }
-        .frame(minWidth: 70)
-    }
-}
-
-// MARK: - InfoRow
-struct InfoRow: View {
-    var imageName: String
-    var label: String
-    var value: String
-    var fontSize: CGFloat
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(imageName)
+        VStack(spacing: 22) {
+            Image("deepcool-logo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 45, height: 45)
-            Text("\(label): \(value)")
-                .font(.system(size: fontSize, weight: .bold))
-                .foregroundColor(.primary)
-        }
-        .padding(14)
-        .background(Color(.windowBackgroundColor).opacity(0.75))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.15), radius: 3)
-    }
-}
+                .frame(width: 44, height: 44)
+                .padding(.top, 8)
 
-// MARK: - InfoMetricsWithProgress
-struct InfoMetricsWithProgress: View {
-    var cpuFrequency: Double
-    var cpuUsage: Double
-    var cpuTemperature: Double
-    var cpuTDP: Double
-    @Binding var animatePulse: Bool
-
-    var body: some View {
-        VStack(spacing: 24) {
-            MetricWithProgress(
-                title: "Fréquence CPU",
-                iconName: "cpu",
-                value: String(format: "%.2f GHz", cpuFrequency),
-                progress: min(cpuFrequency / 5.0, 1.0),
-                progressColor: .green,
-                animatePulse: animatePulse
-            )
-
-            MetricWithProgress(
-                title: "Utilisation CPU",
-                iconName: "speedometer",
-                value: String(format: "%.1f %%", cpuUsage),
-                progress: cpuUsage / 100,
-                progressColor: usageColor(cpuUsage),
-                animatePulse: animatePulse
-            )
-
-            MetricWithProgress(
-                title: "Température CPU",
-                iconName: "thermometer",
-                value: String(format: "%.1f°C", cpuTemperature),
-                progress: min(cpuTemperature / 100, 1.0),
-                progressColor: temperatureColor(cpuTemperature),
-                animatePulse: animatePulse
-            )
-
-            MetricWithProgress(
-                title: "TDP",
-                iconName: "bolt.fill",
-                value: String(format: "%.1f W", cpuTDP),
-                progress: min(cpuTDP / 150.0, 1.0),
-                progressColor: .green,
-                animatePulse: animatePulse
-            )
-        }
-        .padding(.top, 24)
-    }
-}
-
-// MARK: - MetricWithProgress
-struct MetricWithProgress: View {
-    var title: String
-    var iconName: String
-    var value: String
-    var progress: Double
-    var progressColor: Color
-    var animatePulse: Bool = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Image(systemName: iconName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 22, height: 22)
-                    .foregroundColor(progressColor.opacity(animatePulse ? 1 : 0.6))
-                    .scaleEffect(animatePulse ? 1.2 : 1.0)
-                    .animation(.bouncy, value: animatePulse)
-
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                Spacer()
-                Text(value)
-                    .font(.custom("DS-Digital", size: 24))
-                    .foregroundColor(progressColor)
+            VStack(spacing: 22) {
+                SidebarIcon(systemName: "gauge")
+                SidebarIcon(systemName: "display")
+                SidebarIcon(systemName: "externaldrive")
+                SidebarIcon(systemName: "network")
             }
+            .padding(.top, 12)
+            .foregroundColor(deepTeal)
 
-            ProgressView(value: progress)
-                .progressViewStyle(.linear)
-                .frame(height: 10)
-                .cornerRadius(5)
+            Spacer()
+            SidebarIcon(systemName: "gearshape")
+                .padding(.bottom, 14)
         }
-        .padding(12)
-        .background(Color(.windowBackgroundColor).opacity(0.85))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.15), radius: 5)
+        .frame(maxHeight: .infinity)
     }
 }
 
-// MARK: - DashboardView
-struct DashboardView: View {
-    @ObservedObject var viewModel: ContentViewModel
+fileprivate struct SidebarIcon: View {
+    let systemName: String
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 18, weight: .semibold))
+            .frame(width: 40, height: 40)
+            .background(Color.clear)
+            .cornerRadius(8)
+    }
+}
+
+// ---------- CPUCard ----------
+struct CPUCard: View {
+    let cpuModel: String
+    let cpuCoreCount: Int
+    let cpuFrequencyMHz: Double
+    let cpuTemp: Double
+    let cpuUsagePercent: Double
+    let cpuTDP: Double
 
     var body: some View {
-        VStack(spacing: 24) {
-            HStack(spacing: 24) {
-                MetricView(
-                    title: "RAM utilisée",
-                    iconName: "memorychip.fill",
-                    value: String(format: "%.2f / %.2f Go", viewModel.ramUsed, viewModel.ramTotal),
-                    valueColor: .blue
-                )
+        let tempColor = temperatureColor(cpuTemp)
 
-                CircularProgressBar(
-                    value: viewModel.ramUsed / viewModel.ramTotal,
-                    color: Color.blue
-                )
-                .frame(width: 90, height: 90)
+        return InfoCard {
+            HStack(spacing: 18) {
+                CircularSemiGauge(value: cpuUsagePercent / 100.0, accent: deepTeal)
+                    .frame(width: 160, height: 120)
 
-                Text(String(format: "%.0f%%", viewModel.ramUsed / viewModel.ramTotal * 100))
-                    .font(.title2)
-                    .foregroundColor(.green)
-                    .multilineTextAlignment(.center)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Processeur :").font(.headline)
+                        Image("DC CPU").resizable().scaledToFit().frame(width: 55, height: 55)
+                    }
 
-                Spacer()
+                    Text(cpuModel).font(.subheadline).foregroundColor(.secondary)
+                    Text("Nombre De Cœurs: \(cpuCoreCount)").font(.caption).foregroundColor(.secondary)
+                    Spacer().frame(height: 6)
 
-                MetricView(
-                    title: "Fréquence RAM",
-                    iconName: "speedometer",
-                    value: String(format: "%.0f MHz", viewModel.ramFrequency),
-                    valueColor: .blue
-                )
+                    HStack {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Fréquence CPU").font(.headline).foregroundColor(.secondary)
+                            Text(String(format: "%.2f GHz", cpuFrequencyMHz / 1000.0))
+                                .font(.custom("DS-Digital", size: 40))
+                                .foregroundColor(deepTeal)
+                        }
+
+                        Spacer()
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("Température").font(.headline).foregroundColor(.secondary)
+                                Image(systemName: "thermometer").font(.system(size: 40)).foregroundColor(tempColor)
+                                Text(String(format:"%.0f°C", cpuTemp))
+                                    .font(.custom("DS-Digital", size: 40))
+                                    .foregroundColor(tempColor)
+                            }
+                        }
+                    }
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Consommation (TDP)").font(.headline).foregroundColor(.secondary)
+                            Text(String(format: "%.0f W", cpuTDP))
+                                .font(.custom("DS-Digital", size: 40))
+                                .foregroundColor(deepTeal)
+                        }
+                        Spacer()
+                    }
+                }
             }
-            .padding(.top, 14)
         }
-        .padding(.top, 10)
+        .frame(minHeight: 60)
     }
 }
 
-// MARK: - MetricView
-struct MetricView: View {
-    var title: String
-    var iconName: String
-    var value: String
-    var valueColor: Color
+// ---------- GPUCardSimple ----------
+struct GPUCardSimple: View {
+    let gpuModel: String
+    let gpuVRAM: Double
 
     var body: some View {
-        VStack(alignment: .center, spacing: 6) {
-            HStack {
-                Image(systemName: iconName)
-                    .foregroundColor(.primary)
-                Text(title)
-                    .foregroundColor(.secondary)
-                    .font(.headline)
+        InfoCard {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text("Carte Graphique :").font(.headline)
+                    Image("graphics card vector").resizable().scaledToFit().frame(width: 200, height: 200)
+                }
+                Text(gpuModel).font(.subheadline).foregroundColor(.secondary)
+                Text(String(format: "VRAM : %.1f GB", gpuVRAM)).font(.subheadline).foregroundColor(.secondary)
             }
-            Text(value)
-                .font(.title3)
-                .foregroundColor(valueColor)
-                .multilineTextAlignment(.center)
         }
-        .padding(12)
-        .background(Color(.windowBackgroundColor).opacity(0.85))
-        .cornerRadius(12)
-        .shadow(color: .gray.opacity(0.3), radius: 5)
+        .frame(minHeight: 60)
     }
 }
 
-// MARK: - CircularProgressBar
-struct CircularProgressBar: View {
+// ---------- MemoryCard ----------
+struct MemoryCard: View {
+    let ramUsed: Double
+    let ramTotal: Double
+    let ramFreqMHz: Double
+
+    var body: some View {
+        InfoCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Mémoire Utilisée").font(.headline)
+
+                let safeTotal = ramTotal > 0 ? ramTotal : 1
+                let usagePercent = min(max(ramUsed / safeTotal, 0), 1)
+
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color(NSColor.separatorColor).opacity(0.3), lineWidth: 1)
+                        .frame(height: 36)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color(NSColor.windowBackgroundColor)))
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(deepTeal.opacity(0.7))
+                        .frame(width: CGFloat(usagePercent) * 300, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+
+                HStack {
+                    Text(String(format: "%.0f / %.0f GB", ramUsed, ramTotal)).font(.caption2).foregroundColor(.secondary)
+                    Spacer()
+                    Text(String(format: "%d%%", Int(usagePercent * 100))).font(.caption2).foregroundColor(.secondary)
+                }
+
+                Text("Fréquence Mémoire").font(.headline).foregroundColor(.secondary)
+                Text(String(format: "%.0f MHz", ramFreqMHz)).font(.title2).foregroundColor(deepTeal)
+            }
+        }
+        .frame(minHeight: 160)
+    }
+}
+
+// ---------- DiskCard ----------
+struct DiskCard: View {
+    let diskUsed: Double
+    let diskTotal: Double
+
+    var body: some View {
+        InfoCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Disque").font(.headline)
+
+                let safeTotal = diskTotal > 0 ? diskTotal : 1
+                let usagePercent = min(max(diskUsed / safeTotal, 0), 1)
+
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color(NSColor.separatorColor).opacity(0.3), lineWidth: 1)
+                        .frame(height: 36)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color(NSColor.windowBackgroundColor)))
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(deepTeal.opacity(0.6))
+                        .frame(width: CGFloat(usagePercent) * 300, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+
+                let usedGB = diskUsed / 1_073_741_824
+                let totalGB = diskTotal / 1_073_741_824
+                HStack {
+                    Text(String(format: "%.2f / %.2f Go", usedGB, totalGB)).font(.caption2).foregroundColor(.secondary)
+                    Spacer()
+                    Text(String(format: "%d%%", Int(usagePercent * 100))).font(.caption2).foregroundColor(.secondary)
+                }
+            }
+        }
+        .frame(minHeight: 160)
+    }
+}
+
+// ---------- NetworkCard ----------
+struct NetworkCard: View {
+    let networkUploadSpeed: Double
+    let networkDownloadSpeed: Double
+
+    var body: some View {
+        InfoCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "network").font(.title2).foregroundColor(deepTeal)
+                    Text("Traffic Réseau").font(.headline)
+                }
+
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("Vitesse D'envoie").font(.caption).foregroundColor(.secondary)
+                        ProgressView(value: min(networkUploadSpeed / 10_000_000, 1.0)).accentColor(deepTeal)
+                        Text(String(format: "%.2f MB/s", networkUploadSpeed / 1_048_576)).font(.caption2).foregroundColor(.secondary)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("Vitesse De Reception").font(.caption).foregroundColor(.secondary)
+                        ProgressView(value: min(networkDownloadSpeed / 10_000_000, 1.0)).accentColor(deepTeal)
+                        Text(String(format: "%.2f MB/s", networkDownloadSpeed / 1_048_576)).font(.caption2).foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .frame(minHeight: 160)
+    }
+}
+
+// ---------- CircularSemiGauge ----------
+struct CircularSemiGauge: View {
     var value: Double
-    var color: Color
+    var accent: Color
 
     var body: some View {
-        ZStack {
-            Circle()
-                .stroke(lineWidth: 10)
-                .opacity(0.2)
-                .foregroundColor(color)
+        GeometryReader { g in
+            ZStack {
+                Circle()
+                    .trim(from: 0.125, to: 0.875)
+                    .stroke(Color(NSColor.separatorColor).opacity(0.3), style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .rotationEffect(.degrees(180))
 
-            Circle()
-                .trim(from: 0, to: CGFloat(min(value, 1.0)))
-                .stroke(style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
-                .foregroundColor(color)
-                .rotationEffect(Angle(degrees: -90))
-                .animation(.bouncy, value: value)
+                Circle()
+                    .trim(from: 0.125, to: 0.125 + (0.75 * CGFloat(min(max(value, 0.0), 1.0))))
+                    .stroke(accent, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .rotationEffect(.degrees(180))
+                    .animation(.easeInOut(duration: 0.45), value: value)
+
+                VStack {
+                    Text("Load").font(.caption).foregroundColor(.secondary)
+                    Text("\(Int(min(max(value, 0.0), 1.0) * 100))%")
+                        .font(.title)
+                        .fontWeight(.semibold)
+                }
+            }
+            .frame(width: g.size.width, height: g.size.height)
         }
     }
 }
 
-// MARK: - Preview
+// ---------- Preview ----------
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView(viewModel: ContentViewModel())
-            .preferredColorScheme(.light)
-            .padding(.bottom)
-            .environment(\.sizeCategory, .large)
+        Group {
+            ContentView(viewModel: ContentViewModel())
+                .frame(minWidth: 1100, minHeight: 700)
+                .preferredColorScheme(.light)
+
+            ContentView(viewModel: ContentViewModel())
+                .frame(minWidth: 1100, minHeight: 700)
+                .preferredColorScheme(.dark)
+        }
     }
 }
+

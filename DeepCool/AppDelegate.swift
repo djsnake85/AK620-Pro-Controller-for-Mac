@@ -1,3 +1,4 @@
+
 import Cocoa
 import SwiftUI
 import Combine
@@ -81,7 +82,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             backing: .buffered, defer: false)
         window.center()
         window.setFrameAutosaveName("Main Window")
-        window.title = "DEEPCOOL AK620 DIGITAL PRO"
+        window.title = "DeepCool AK620 Digital Pro"
         window.contentView = NSHostingView(rootView: contentView)
         window.delegate = self
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
@@ -126,9 +127,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: - Mise à jour de la barre de statut
     private func updateStatus(temp: Double, usage: Double, frequency: Double) {
-        let tempFormatted = String(format: "%.1f", temp)
-        let usageFormatted = String(format: "%.1f", usage)
-        let freqFormatted = String(format: "%.2f", frequency)
+        let tempFormatted = String(format: "%.0f", temp)
+        let usageFormatted = String(format: "%.0f", usage)
+        let freqFormatted = String(format: "%.2f", frequency / 1000.0) // <-- Divisé par 1000 pour GHz
 
         cpuFreqMenuItem.title = "Fréquence CPU: \(freqFormatted) GHz"
         cpuTempMenuItem.title = "Temp CPU: \(tempFormatted)°C"
@@ -200,4 +201,3 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 }
-
