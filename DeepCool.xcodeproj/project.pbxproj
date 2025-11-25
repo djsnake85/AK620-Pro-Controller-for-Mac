@@ -66,8 +66,11 @@
 			membershipExceptions = (
 				"DC3-Cropped.png",
 				"Deepcool-logo-black.png",
+				"deepcool-logo.png",
 				"DS-DIGI.TTF",
 				"DS-DIGIB.TTF",
+				"GPU Anim.gif",
+				"GPU-R.png",
 				GPU.png,
 			);
 			target = 42C685932D56989000AEC89A /* DeepCoolTests */;
@@ -77,8 +80,11 @@
 			membershipExceptions = (
 				"DC3-Cropped.png",
 				"Deepcool-logo-black.png",
+				"deepcool-logo.png",
 				"DS-DIGI.TTF",
 				"DS-DIGIB.TTF",
+				"GPU Anim.gif",
+				"GPU-R.png",
 				GPU.png,
 			);
 			target = 42C6859D2D56989000AEC89A /* DeepCoolUITests */;
