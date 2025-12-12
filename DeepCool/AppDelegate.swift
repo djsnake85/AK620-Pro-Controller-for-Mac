@@ -1,4 +1,3 @@
-
 import Cocoa
 import SwiftUI
 import Combine
@@ -15,25 +14,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var mainWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
-    private var pulseTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 1️⃣ Créer le ViewModel avant tout
         viewModel = ContentViewModel()
-
-        // 2️⃣ Configurer le menu de la barre de statut
         setupStatusBarMenu()
-
-        // 3️⃣ Créer la fenêtre principale
         createMainWindowIfNeeded()
-
-        // 4️⃣ Lier les données du ViewModel à la barre de statut
         setupBindings()
 
-        // 5️⃣ Lancer le timer de pulsation
-        setupStatusPulseAnimation()
-
-        // 6️⃣ Afficher la fenêtre et activer l'app
         mainWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         toggleWindowMenuItem.title = "Masquer la fenêtre"
@@ -44,18 +31,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            if let icon = NSImage(named: NSImage.Name("Deepcool 16")) {
-                button.image = icon
-                button.image?.isTemplate = false
+            // Icône Deepcool proportionnée
+            if let deepcoolIcon = NSImage(named: "deepcool-logo") {
+                deepcoolIcon.isTemplate = false
+                button.image = resizeImage(image: deepcoolIcon, width: 18, height: 18)
             }
             button.title = ""
         }
 
         let menu = NSMenu()
-
-        cpuFreqMenuItem = NSMenuItem(title: "Fréquence CPU: -- GHz", action: nil, keyEquivalent: "")
-        cpuTempMenuItem = NSMenuItem(title: "Temp CPU: --°C", action: nil, keyEquivalent: "")
-        cpuUsageMenuItem = NSMenuItem(title: "Usage CPU: --%", action: nil, keyEquivalent: "")
+        cpuFreqMenuItem = NSMenuItem(title: "Fréquence CPU : -- GHz", action: nil, keyEquivalent: "")
+        cpuTempMenuItem = NSMenuItem(title: "Temp CPU : --°C", action: nil, keyEquivalent: "")
+        cpuUsageMenuItem = NSMenuItem(title: "Usage CPU : --%", action: nil, keyEquivalent: "")
         toggleWindowMenuItem = NSMenuItem(title: "Afficher la fenêtre", action: #selector(toggleWindow), keyEquivalent: "w")
         toggleWindowMenuItem.target = self
 
@@ -70,16 +57,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem.menu = menu
     }
 
+    // MARK: - Redimensionner image
+    private func resizeImage(image: NSImage, width: CGFloat, height: CGFloat) -> NSImage {
+        let resized = NSImage(size: NSSize(width: width, height: height))
+        resized.lockFocus()
+        image.draw(in: NSRect(x: 0, y: 0, width: width, height: height),
+                   from: NSRect.zero,
+                   operation: .sourceOver,
+                   fraction: 1.0)
+        resized.unlockFocus()
+        return resized
+    }
+
     // MARK: - Fenêtre principale
     func createMainWindowIfNeeded() {
         guard mainWindow == nil else { return }
-
         let contentView = ContentView(viewModel: self.viewModel)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 600),
             styleMask: [.titled, .closable, .resizable],
-            backing: .buffered, defer: false)
+            backing: .buffered, defer: false
+        )
         window.center()
         window.setFrameAutosaveName("Main Window")
         window.title = "DeepCool AK620 Digital Pro"
@@ -129,75 +128,45 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func updateStatus(temp: Double, usage: Double, frequency: Double) {
         let tempFormatted = String(format: "%.0f", temp)
         let usageFormatted = String(format: "%.0f", usage)
-        let freqFormatted = String(format: "%.2f", frequency / 1000.0) // <-- Divisé par 1000 pour GHz
+        let freqFormatted = String(format: "%.2f", frequency / 1000.0)
 
-        cpuFreqMenuItem.title = "Fréquence CPU: \(freqFormatted) GHz"
-        cpuTempMenuItem.title = "Temp CPU: \(tempFormatted)°C"
-        cpuUsageMenuItem.title = "Usage CPU: \(usageFormatted)%"
+        // Mise à jour menu
+        cpuFreqMenuItem.title = "Fréquence CPU : \(freqFormatted) GHz"
+        cpuTempMenuItem.title = "Temp CPU : \(tempFormatted)°C"
+        cpuUsageMenuItem.title = "Usage CPU : \(usageFormatted)%"
 
         guard let button = statusItem.button else { return }
 
-        let statusText = "CPU Info : \(freqFormatted) GHz - \(tempFormatted)°C - \(usageFormatted)%"
+        // Texte avec thermomètre
+        let thermometer = "🌡️"
+        let statusText = "Fréquence: \(freqFormatted) GHz | Température:  \(thermometer) \(tempFormatted)°C | Usage: \(usageFormatted)%"
+
+        // Couleur dynamique selon température
         let color: NSColor
         if temp > 75 {
-            color = .red
+            color = .systemRed
         } else if temp >= 65 {
-            color = .orange
+            color = .systemOrange
         } else {
-            color = .systemGreen
+            color = .labelColor
         }
 
-        button.image = NSImage(named: "Deepcool 16")
-        button.image?.isTemplate = false
+        // Police San Francisco 12 pt light
+        let font = NSFont.systemFont(ofSize: 12, weight: .light)
+
         button.attributedTitle = NSAttributedString(
             string: statusText,
             attributes: [
                 .foregroundColor: color,
-                .font: NSFont.systemFont(ofSize: 14, weight: .bold)
+                .font: font
             ]
         )
-    }
 
-    // MARK: - Animation de pulsation du texte
-    private func setupStatusPulseAnimation() {
-        guard let button = statusItem.button else { return }
-
-        var increasingAlpha = true
-        var currentAlpha: CGFloat = 1.0
-
-        pulseTimer?.invalidate()
-        pulseTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-
-            currentAlpha += increasingAlpha ? -0.1 : 0.1
-            if currentAlpha <= 0.4 {
-                currentAlpha = 0.4
-                increasingAlpha = false
-            } else if currentAlpha >= 1.0 {
-                currentAlpha = 1.0
-                increasingAlpha = true
-            }
-
-            let text = button.attributedTitle.string
-
-            let color: NSColor
-            if self.viewModel.cpuTemperature > 75 {
-                color = NSColor.red.withAlphaComponent(currentAlpha)
-            } else if self.viewModel.cpuTemperature >= 65 {
-                color = NSColor.orange.withAlphaComponent(currentAlpha)
-            } else {
-                color = NSColor.systemGreen.withAlphaComponent(currentAlpha)
-            }
-
-            let attrTitle = NSAttributedString(
-                string: text,
-                attributes: [
-                    .foregroundColor: color,
-                    .font: NSFont.systemFont(ofSize: 14, weight: .bold)
-                ]
-            )
-
-            button.attributedTitle = attrTitle
+        // Icône principale Deepcool proportionnée
+        if let deepcoolIcon = NSImage(named: "deepcool-logo") {
+            deepcoolIcon.isTemplate = false
+            button.image = resizeImage(image: deepcoolIcon, width: 18, height: 18)
         }
     }
 }
+
