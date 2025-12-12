@@ -1,7 +1,6 @@
-
 //
 // ContentView.swift
-// DeepCoolStyleDashboard - version finale (adaptatif mode clair/sombre)
+// DeepCoolStyleDashboard - version aiguilles réseau style Speedtest
 //
 
 import SwiftUI
@@ -15,14 +14,13 @@ fileprivate func temperatureColor(_ temp: Double) -> Color {
     else { return deepTeal }
 }
 
-// ---------- InfoCard sans transparence ----------
+// ---------- InfoCard ----------
 struct InfoCard<Content: View>: View {
     let content: Content
     init(@ViewBuilder content: () -> Content) { self.content = content() }
 
     var body: some View {
         ZStack {
-            // Fond opaque
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(NSColor.windowBackgroundColor))
                 .overlay(
@@ -340,22 +338,132 @@ struct NetworkCard: View {
                     Text("Traffic Réseau").font(.headline)
                 }
 
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Vitesse D'envoie").font(.caption).foregroundColor(.secondary)
-                        ProgressView(value: min(networkUploadSpeed / 10_000_000, 1.0)).accentColor(deepTeal)
-                        Text(String(format: "%.2f MB/s", networkUploadSpeed / 1_048_576)).font(.caption2).foregroundColor(.secondary)
-                    }
+                HStack(spacing: 24) {
+                    NeedleGauge(
+                        value: networkUploadSpeed / 1_048_576, // MB/s
+                        maxValue: 130,
+                        accent: deepTeal,
+                        label: "Upload"
+                    )
+                    .frame(width: 140, height: 120)
 
-                    VStack(alignment: .leading) {
-                        Text("Vitesse De Reception").font(.caption).foregroundColor(.secondary)
-                        ProgressView(value: min(networkDownloadSpeed / 10_000_000, 1.0)).accentColor(deepTeal)
-                        Text(String(format: "%.2f MB/s", networkDownloadSpeed / 1_048_576)).font(.caption2).foregroundColor(.secondary)
-                    }
+                    NeedleGauge(
+                        value: networkDownloadSpeed / 1_048_576,
+                        maxValue: 130,
+                        accent: .orange,
+                        label: "Download"
+                    )
+                    .frame(width: 140, height: 120)
                 }
             }
         }
-        .frame(minHeight: 160)
+        .frame(minHeight: 180)
+    }
+}
+
+// ---------- NeedleGauge ----------
+struct NeedleGauge: View {
+    var value: Double
+    var maxValue: Double
+    var accent: Color
+    var label: String
+
+    @State private var animatedValue: Double = 0
+
+    private let totalAngle: Double = 270
+    private let startAngle: Double = -135
+
+    var body: some View {
+        GeometryReader { g in
+            let width = g.size.width
+            let height = g.size.height
+            let center = CGPoint(x: width/2, y: height/2)
+            let radius = min(width, height)/2.5
+
+            ZStack {
+                Circle()
+                    .trim(from: 0.125, to: 0.875)
+                    .stroke(Color(NSColor.separatorColor).opacity(0.3),
+                            style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .rotationEffect(.degrees(180))
+
+                ForEach(0...10, id: \.self) { i in
+                    let angle = startAngle + (Double(i)/10 * totalAngle)
+                    let rad = angle * Double.pi / 180
+                    let inner = CGPoint(
+                        x: center.x + CGFloat(cos(rad)) * (radius - 6),
+                        y: center.y + CGFloat(sin(rad)) * (radius - 6)
+                    )
+                    let outer = CGPoint(
+                        x: center.x + CGFloat(cos(rad)) * radius,
+                        y: center.y + CGFloat(sin(rad)) * radius
+                    )
+                    Path { path in
+                        path.move(to: inner)
+                        path.addLine(to: outer)
+                    }
+                    .stroke(Color.secondary.opacity(0.5), lineWidth: 2)
+
+                    let labelValue = Int(Double(i)/10 * maxValue)
+                    let textPos = CGPoint(
+                        x: center.x + CGFloat(cos(rad)) * (radius + 10),
+                        y: center.y + CGFloat(sin(rad)) * (radius + 10)
+                    )
+                    Text("\(labelValue)").font(.caption2).foregroundColor(.secondary)
+                        .position(textPos)
+                }
+
+                // --- Aiguille triangulaire avec glow ---
+                let needleAngle = startAngle + (animatedValue/maxValue * totalAngle)
+                let rad = needleAngle * Double.pi / 180
+                let tip = CGPoint(x: center.x + CGFloat(cos(rad)) * radius,
+                                  y: center.y + CGFloat(sin(rad)) * radius)
+
+                Path { path in
+                    let baseWidth: CGFloat = 8
+                    let anglePerp = atan2(tip.y - center.y, tip.x - center.x) + .pi/2
+                    let base1 = CGPoint(
+                        x: center.x + cos(anglePerp) * baseWidth,
+                        y: center.y + sin(anglePerp) * baseWidth
+                    )
+                    let base2 = CGPoint(
+                        x: center.x - cos(anglePerp) * baseWidth,
+                        y: center.y - sin(anglePerp) * baseWidth
+                    )
+                    path.move(to: base1)
+                    path.addLine(to: tip)
+                    path.addLine(to: base2)
+                    path.closeSubpath()
+                }
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [accent.opacity(0.4), accent, accent.opacity(0.9)]),
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                )
+                .shadow(color: accent.opacity(0.6), radius: 6, x: 0, y: 0)
+
+                Circle()
+                    .fill(accent)
+                    .frame(width: 12, height: 12)
+                    .shadow(color: accent.opacity(0.7), radius: 4, x: 0, y: 0)
+
+                VStack {
+                    Spacer()
+                    Text(label).font(.caption).foregroundColor(.secondary)
+                    Text(String(format: "%.2f MB/s", animatedValue))
+                        .font(.caption2)
+                        .foregroundColor(.primary)
+                }
+            }
+            .onAppear { animatedValue = value }
+            .onChange(of: value) { newValue in
+                withAnimation(.interpolatingSpring(stiffness: 140, damping: 18)) {
+                    animatedValue = newValue
+                }
+            }
+        }
     }
 }
 
@@ -369,38 +477,25 @@ struct CircularSemiGauge: View {
             ZStack {
                 Circle()
                     .trim(from: 0.125, to: 0.875)
-                    .stroke(Color(NSColor.separatorColor).opacity(0.3), style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .stroke(Color(NSColor.separatorColor).opacity(0.3),
+                            style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .rotationEffect(.degrees(180))
 
                 Circle()
-                    .trim(from: 0.125, to: 0.125 + (0.75 * CGFloat(min(max(value, 0.0), 1.0))))
-                    .stroke(accent, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .trim(from: 0.125,
+                          to: 0.125 + (0.75 * CGFloat(min(max(value, 0), 1))))
+                    .stroke(accent,
+                            style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .rotationEffect(.degrees(180))
-                    .animation(.easeInOut(duration: 0.45), value: value)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0.3), value: value)
 
                 VStack {
                     Text("Load").font(.caption).foregroundColor(.secondary)
-                    Text("\(Int(min(max(value, 0.0), 1.0) * 100))%")
+                    Text("\(Int(min(max(value, 0), 1) * 100))%")
                         .font(.title)
                         .fontWeight(.semibold)
                 }
             }
-            .frame(width: g.size.width, height: g.size.height)
-        }
-    }
-}
-
-// ---------- Preview ----------
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        Group {
-            ContentView(viewModel: ContentViewModel())
-                .frame(minWidth: 1100, minHeight: 700)
-                .preferredColorScheme(.light)
-
-            ContentView(viewModel: ContentViewModel())
-                .frame(minWidth: 1100, minHeight: 700)
-                .preferredColorScheme(.dark)
         }
     }
 }

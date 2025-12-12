@@ -31,17 +31,12 @@ class ContentViewModel: ObservableObject {
 
     // ---------------- Managers ----------------
     private let deviceManager = DeepcoolDeviceManager()
-    private let powerMonitor: PowerGadgetMonitor?
-    private let systemMonitor = SystemMonitor() // pour RAM, Disk, Network, GPU simple
+    private let systemMonitor = SystemMonitor()
     private var updateTask: Task<Void, Never>? = nil
-
-    private var previousSent: Double = 0.0
-    private var previousReceived: Double = 0.0
 
     init() {
         self.cpuModel = getCPUModel()
         self.cpuCoreCount = ProcessInfo.processInfo.processorCount
-        self.powerMonitor = PowerGadgetMonitor()
 
         // Mise à jour GPU initiale
         Task {
@@ -61,21 +56,17 @@ class ContentViewModel: ObservableObject {
         updateTask?.cancel()
         updateTask = Task {
             while !Task.isCancelled {
-                // ---------------- CPU via PowerGadget ----------------
-                if let monitor = powerMonitor, monitor.updateSamples() {
-                    await MainActor.run {
-                        self.cpuUsage = monitor.getIAUtilization() ?? 0
-                        self.cpuTemperature = monitor.getPackageTemperature() ?? 0
-                        self.cpuFrequency = monitor.getRequestFrequency() ?? 0
-                        self.cpuTDP = monitor.getPackagePower() ?? 0
-                    }
-                }
-
-                // ---------------- RAM / Disk / Network / GPU ----------------
+                // ---------------- CPU / RAM / Disk / Network / GPU ----------------
                 systemMonitor.updateSystemMetrics()
                 systemMonitor.updateDiskAndNetwork()
 
                 await MainActor.run {
+                    // CPU
+                    self.cpuFrequency = systemMonitor.cpuFrequency
+                    self.cpuUsage = systemMonitor.cpuUsage
+                    self.cpuTemperature = systemMonitor.cpuTemperature
+                    self.cpuTDP = systemMonitor.cpuTDP
+
                     // RAM
                     self.ramUsed = systemMonitor.ramUsed
                     self.ramTotal = systemMonitor.ramTotal
@@ -86,25 +77,20 @@ class ContentViewModel: ObservableObject {
                     self.diskTotal = systemMonitor.diskTotal
 
                     // Network
-                    let newSent = systemMonitor.networkSent
-                    let newReceived = systemMonitor.networkReceived
-                    self.networkUploadSpeed = max(newSent - self.previousSent, 0)
-                    self.networkDownloadSpeed = max(newReceived - self.previousReceived, 0)
-                    self.previousSent = newSent
-                    self.previousReceived = newReceived
-                    self.networkSent = newSent
-                    self.networkReceived = newReceived
+                    self.networkSent = systemMonitor.networkSent
+                    self.networkReceived = systemMonitor.networkReceived
+                    self.networkUploadSpeed = systemMonitor.networkUploadSpeed
+                    self.networkDownloadSpeed = systemMonitor.networkDownloadSpeed
 
                     // GPU
                     self.gpuVRAM = systemMonitor.gpuVRAM
                     self.gpuUsage = systemMonitor.gpuUsage
                 }
 
-                // Envoyer commandes au périphérique Deepcool (AK620 Pro, etc.)
+                // ---------------- Envoi au Deepcool AK620 Pro ----------------
                 let commandData = systemMonitor.createHUDCommand()
                 deviceManager.sendCommand(commandData)
 
-                // Pause 1 seconde
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
         }
