@@ -144,7 +144,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         // Texte CPU
-        let statusText = "Informations CPU : Fréquence : \(freqFormatted) GHz | Température : \(tempFormatted)°C | Usage : \(usageFormatted)%"
+        let statusText = "Informations du Processeur : Fréquence : \(freqFormatted) GHz | Température : \(tempFormatted)°C | Usage : \(usageFormatted)%"
 
         button.attributedTitle = NSAttributedString(
             string: statusText,
