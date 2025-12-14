@@ -225,7 +225,7 @@ struct CPUCard: View {
                 }
             }
         }
-        .frame(minHeight: 60)
+        .frame(minHeight: 50)
     }
 }
 
@@ -239,13 +239,13 @@ struct GPUCardSimple: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
                     Text("Carte Graphique :").font(.headline)
-                    Image("graphics card vector").resizable().scaledToFit().frame(width: 200, height: 200)
+                    Image("graphics card vector").resizable().scaledToFit().frame(width: 220, height: 220)
                 }
                 Text(gpuModel).font(.subheadline).foregroundColor(.secondary)
                 Text(String(format: "VRAM : %.1f GB", gpuVRAM)).font(.subheadline).foregroundColor(.secondary)
             }
         }
-        .frame(minHeight: 60)
+        .frame(minHeight: 50)
     }
 }
 
@@ -270,7 +270,7 @@ struct MemoryCard: View {
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color(NSColor.windowBackgroundColor)))
                     RoundedRectangle(cornerRadius: 6)
                         .fill(deepTeal)
-                        .frame(width: CGFloat(usagePercent) * 300, height: 36)
+                        .frame(width: CGFloat(usagePercent) * 300, height: 30)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
 
@@ -284,7 +284,7 @@ struct MemoryCard: View {
                 Text(String(format: "%.0f MHz", ramFreqMHz)).font(.title2).foregroundColor(deepTeal)
             }
         }
-        .frame(minHeight: 160)
+        .frame(minHeight: 100)
     }
 }
 
@@ -308,7 +308,7 @@ struct DiskCard: View {
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color(NSColor.windowBackgroundColor)))
                     RoundedRectangle(cornerRadius: 6)
                         .fill(deepTeal)
-                        .frame(width: CGFloat(usagePercent) * 300, height: 36)
+                        .frame(width: CGFloat(usagePercent) * 300, height: 30)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
 
@@ -340,18 +340,20 @@ struct NetworkCard: View {
 
                 HStack(spacing: 24) {
                     NeedleGauge(
-                        value: networkUploadSpeed / 1_048_576, // MB/s
-                        maxValue: 130,
+                        value: networkUploadSpeed / 1_048_576  ,// MB/s
+                        maxValue: 125,
                         accent: deepTeal,
-                        label: "Upload"
+                        label: "Upload",
+                        labelOffset: -25 // <-- remonte le label
                     )
                     .frame(width: 140, height: 120)
 
                     NeedleGauge(
                         value: networkDownloadSpeed / 1_048_576,
-                        maxValue: 130,
+                        maxValue: 125,
                         accent: .orange,
-                        label: "Download"
+                        label: "Download",
+                        labelOffset: -25 // <-- remonte le label
                     )
                     .frame(width: 140, height: 120)
                 }
@@ -367,6 +369,7 @@ struct NeedleGauge: View {
     var maxValue: Double
     var accent: Color
     var label: String
+    var labelOffset: CGFloat = 0
 
     @State private var animatedValue: Double = 0
 
@@ -452,9 +455,11 @@ struct NeedleGauge: View {
                 VStack {
                     Spacer()
                     Text(label).font(.caption).foregroundColor(.secondary)
+                        .offset(y: labelOffset) // <-- applique l'offset
                     Text(String(format: "%.2f MB/s", animatedValue))
                         .font(.caption2)
                         .foregroundColor(.primary)
+                        .offset(y: labelOffset)
                 }
             }
             .onAppear { animatedValue = value }
@@ -499,3 +504,5 @@ struct CircularSemiGauge: View {
         }
     }
 }
+
+

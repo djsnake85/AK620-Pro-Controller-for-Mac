@@ -4,8 +4,7 @@ import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
-    private var viewModel: ContentViewModel!
-
+    var viewModel: ContentViewModel!
     var statusItem: NSStatusItem!
     var cpuTempMenuItem: NSMenuItem!
     var cpuUsageMenuItem: NSMenuItem!
@@ -21,7 +20,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupStatusBarMenu()
         createMainWindowIfNeeded()
         setupBindings()
-        
+
         mainWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         toggleWindowMenuItem.title = "Masquer la fenêtre"
@@ -31,44 +30,38 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func setupStatusBarMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
-        if let button = statusItem.button {
-            if let deepcoolIcon = NSImage(named: "deepcool-logo") {
-                deepcoolIcon.isTemplate = false
-                button.image = resizeImage(image: deepcoolIcon, width: 18, height: 18)
-            }
-            button.title = ""
-        }
-
         cpuFreqMenuItem = NSMenuItem(title: "Fréquence CPU : -- GHz", action: nil, keyEquivalent: "")
         cpuTempMenuItem = NSMenuItem(title: "Temp CPU : --°C", action: nil, keyEquivalent: "")
         cpuUsageMenuItem = NSMenuItem(title: "Usage CPU : --%", action: nil, keyEquivalent: "")
+
         toggleWindowMenuItem = NSMenuItem(title: "Afficher la fenêtre", action: #selector(toggleWindow), keyEquivalent: "w")
         toggleWindowMenuItem.target = self
 
-        let menu = NSMenu()
-        [cpuFreqMenuItem, cpuTempMenuItem, cpuUsageMenuItem, NSMenuItem.separator(), toggleWindowMenuItem, NSMenuItem.separator(),
-         NSMenuItem(title: "Quitter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")].forEach { menu.addItem($0) }
-        
-        statusItem.menu = menu
-    }
+        let settingsMenuItem = NSMenuItem(title: "Paramètres", action: #selector(openSettingsWindow), keyEquivalent: "")
+        if let settingsIcon = NSImage(systemSymbolName: "gear", accessibilityDescription: "Settings Icon") {
+            settingsIcon.isTemplate = true
+            settingsMenuItem.image = settingsIcon
+        }
 
-    // MARK: - Redimensionner une image
-    private func resizeImage(image: NSImage, width: CGFloat, height: CGFloat) -> NSImage {
-        let resized = NSImage(size: NSSize(width: width, height: height))
-        resized.lockFocus()
-        image.draw(in: NSRect(x: 0, y: 0, width: width, height: height),
-                   from: NSRect.zero,
-                   operation: .sourceOver,
-                   fraction: 1.0)
-        resized.unlockFocus()
-        return resized
+        let quitMenuItem = NSMenuItem(title: "Quitter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        
+        let menu = NSMenu()
+        [cpuFreqMenuItem, cpuTempMenuItem, cpuUsageMenuItem,
+         NSMenuItem.separator(),
+         toggleWindowMenuItem,
+         settingsMenuItem,
+         NSMenuItem.separator(),
+         quitMenuItem
+        ].forEach { menu.addItem($0) }
+
+        statusItem.menu = menu
     }
 
     // MARK: - Fenêtre principale
     private func createMainWindowIfNeeded() {
         guard mainWindow == nil else { return }
         let contentView = ContentView(viewModel: self.viewModel)
-        
+
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 600),
             styleMask: [.titled, .closable, .resizable],
@@ -77,7 +70,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         )
         window.center()
         window.setFrameAutosaveName("Main Window")
-        window.title = "DeepCool AK620 Digital Pro"
+        window.title = "DeepCool AK620 Digital Pro - By Snake"
         window.contentView = NSHostingView(rootView: contentView)
         window.delegate = self
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
@@ -126,38 +119,128 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let usageFormatted = String(format: "%.0f", usage)
         let freqFormatted = String(format: "%.2f", frequency / 1000.0)
 
-        // Mise à jour menu
-        cpuFreqMenuItem.title = "Fréquence CPU : \(freqFormatted) GHz"
-        cpuTempMenuItem.title = "Temp CPU : \(tempFormatted)°C"
-        cpuUsageMenuItem.title = "Usage CPU : \(usageFormatted)%"
+        // Couleurs dynamiques
+        let tempColor: NSColor = temp > 75 ? .systemRed : temp >= 65 ? .systemOrange : NSColor.labelColor
+        let usageColor: NSColor = usage > 90 ? .systemRed : usage >= 70 ? .systemOrange : NSColor.labelColor
 
-        guard let button = statusItem.button else { return }
-
-        // Couleur selon température
-        let color: NSColor
-        if temp > 75 {
-            color = .systemRed
-        } else if temp >= 65 {
-            color = .systemOrange
-        } else {
-            color = .labelColor
+        // ------------------------------
+        // Menu Température
+        let tempString = NSMutableAttributedString()
+        if let thermometerIcon = NSImage(systemSymbolName: "thermometer", accessibilityDescription: "Thermometer") {
+            thermometerIcon.isTemplate = true
+            let tintedIcon = thermometerIcon.copy() as! NSImage
+            tintedIcon.lockFocus()
+            tempColor.set()
+            NSRect(origin: .zero, size: tintedIcon.size).fill(using: .sourceAtop)
+            tintedIcon.unlockFocus()
+            let attachment = NSTextAttachment()
+            attachment.image = resizeImage(image: tintedIcon, width: 14, height: 14)
+            tempString.append(NSAttributedString(attachment: attachment))
+            tempString.append(NSAttributedString(string: " "))
         }
+        tempString.append(NSAttributedString(string: "\(tempFormatted)°C", attributes: [
+            .foregroundColor: tempColor,
+            .font: NSFont.systemFont(ofSize: 13, weight: .regular)
+        ]))
+        cpuTempMenuItem.attributedTitle = tempString
 
-        // Texte CPU
-        let statusText = "Informations du Processeur : Fréquence : \(freqFormatted) GHz | Température : \(tempFormatted)°C | Usage : \(usageFormatted)%"
+        // ------------------------------
+        // Menu Usage CPU
+        let usageString = NSMutableAttributedString()
+        if let usageIcon = NSImage(systemSymbolName: "gauge", accessibilityDescription: "CPU Usage") {
+            usageIcon.isTemplate = true
+            let tintedIcon = usageIcon.copy() as! NSImage
+            tintedIcon.lockFocus()
+            usageColor.set()
+            NSRect(origin: .zero, size: tintedIcon.size).fill(using: .sourceAtop)
+            tintedIcon.unlockFocus()
+            let attachment = NSTextAttachment()
+            attachment.image = resizeImage(image: tintedIcon, width: 14, height: 14)
+            usageString.append(NSAttributedString(attachment: attachment))
+            usageString.append(NSAttributedString(string: " "))
+        }
+        usageString.append(NSAttributedString(string: "\(usageFormatted)%", attributes: [
+            .foregroundColor: usageColor,
+            .font: NSFont.systemFont(ofSize: 13, weight: .regular)
+        ]))
+        cpuUsageMenuItem.attributedTitle = usageString
 
-        button.attributedTitle = NSAttributedString(
-            string: statusText,
-            attributes: [
-                .foregroundColor: color,
-                .font: NSFont.systemFont(ofSize: 13, weight: .light)
-            ]
-        )
+        // ------------------------------
+        // Bouton barre de statut : icône DeepCool + thermomètre + usage + fréquence
+        if let button = statusItem.button {
+            let buttonString = NSMutableAttributedString()
 
-        // Icône Deepcool proportionnée
-        if let deepcoolIcon = NSImage(named: "deepcool-logo") {
-            deepcoolIcon.isTemplate = false
-            button.image = resizeImage(image: deepcoolIcon, width: 18, height: 18)
+            // Icône DeepCool
+            if let deepcoolIcon = NSImage(named: "deepcool-logo") {
+                deepcoolIcon.isTemplate = false
+                let attachment = NSTextAttachment()
+                attachment.image = resizeImage(image: deepcoolIcon, width: 15, height: 15)
+                buttonString.append(NSAttributedString(attachment: attachment))
+                buttonString.append(NSAttributedString(string: " "))
+            }
+
+            // Thermomètre
+            if let thermometerIcon = NSImage(systemSymbolName: "thermometer", accessibilityDescription: "Thermometer") {
+                thermometerIcon.isTemplate = true
+                let tintedIcon = thermometerIcon.copy() as! NSImage
+                tintedIcon.lockFocus()
+                tempColor.set()
+                NSRect(origin: .zero, size: tintedIcon.size).fill(using: .sourceAtop)
+                tintedIcon.unlockFocus()
+                let attachment = NSTextAttachment()
+                attachment.image = resizeImage(image: tintedIcon, width: 15, height: 16)
+                buttonString.append(NSAttributedString(attachment: attachment))
+                buttonString.append(NSAttributedString(string: " Temp:\(tempFormatted)°C | "))
+            }
+
+            // Usage CPU
+            if let usageIcon = NSImage(systemSymbolName: "gauge", accessibilityDescription: "CPU Usage") {
+                usageIcon.isTemplate = true
+                let tintedIcon = usageIcon.copy() as! NSImage
+                tintedIcon.lockFocus()
+                usageColor.set()
+                NSRect(origin: .zero, size: tintedIcon.size).fill(using: .sourceAtop)
+                tintedIcon.unlockFocus()
+                let attachment = NSTextAttachment()
+                attachment.image = resizeImage(image: tintedIcon, width: 14, height: 14)
+                buttonString.append(NSAttributedString(attachment: attachment))
+                buttonString.append(NSAttributedString(string: " Usage: \(usageFormatted)% | "))
+            }
+
+            // Fréquence CPU
+            buttonString.append(NSAttributedString(string: " Freq:\(freqFormatted) GHz", attributes: [
+                .foregroundColor: NSColor.labelColor,
+                .font: NSFont.systemFont(ofSize: 14, weight: .light)
+            ]))
+
+            button.attributedTitle = buttonString
+            button.image = nil
         }
     }
+
+    // MARK: - Redimensionner une image
+    private func resizeImage(image: NSImage, width: CGFloat, height: CGFloat) -> NSImage {
+        let resized = NSImage(size: NSSize(width: width, height: height))
+        resized.lockFocus()
+        image.draw(in: NSRect(x: 0, y: 0, width: width, height: height),
+                   from: NSRect.zero,
+                   operation: .sourceOver,
+                   fraction: 1.0)
+        resized.unlockFocus()
+        return resized
+    }
+
+    // MARK: - Fenêtre des paramètres
+    @objc private func openSettingsWindow() {
+        let settingsWindowController = SettingsWindowController()
+        settingsWindowController.showWindow(nil)
+    }
 }
+
+// Classe SettingsWindowController (exemple)
+class SettingsWindowController: NSWindowController {
+    override var windowNibName: NSNib.Name? {
+        return NSNib.Name("SettingsWindow")
+    }
+}
+

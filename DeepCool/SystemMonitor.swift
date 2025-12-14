@@ -224,32 +224,31 @@ class SystemMonitor: ObservableObject {
     }
 
     // ---------- HUD Command ----------
-    func createHUDCommand() -> Data {
-        var bytes = [UInt8](repeating: 0, count: 20)
-        bytes[0] = 16
-        let comando: [UInt8] = [104, 1, 4, 13, 1, 2, 8]
-        for i in 0..<min(7, comando.count) { bytes[1+i] = comando[i] }
+       func createHUDCommand() -> Data {
+           var bytes = [UInt8](repeating: 0, count: 20)
+           bytes[0] = 16
+           let comando: [UInt8] = [104, 1, 4, 13, 1, 2, 8]
+           for i in 0..<min(7, comando.count) { bytes[1+i] = comando[i] }
 
-        let tdp: UInt16 = UInt16(self.cpuTDP)
-        let tdpBE = tdp.bigEndian
-        withUnsafeBytes(of: tdpBE) { ptr in bytes[8] = ptr[0]; bytes[9] = ptr[1] }
+           let tdp: UInt16 = UInt16(self.cpuTDP)
+           let tdpBE = tdp.bigEndian
+           withUnsafeBytes(of: tdpBE) { ptr in bytes[8] = ptr[0]; bytes[9] = ptr[1] }
 
-        let cpuTempF32: Float32 = Float32(self.cpuTemperature)
-        let cpuTempBitsBE = cpuTempF32.bitPattern.bigEndian
-        withUnsafeBytes(of: cpuTempBitsBE) { ptr in
-            bytes[11] = ptr[0]; bytes[12] = ptr[1]; bytes[13] = ptr[2]; bytes[14] = ptr[3]
-        }
+           let cpuTempF32: Float32 = Float32(self.cpuTemperature)
+           let cpuTempBitsBE = cpuTempF32.bitPattern.bigEndian
+           withUnsafeBytes(of: cpuTempBitsBE) { ptr in
+               bytes[11] = ptr[0]; bytes[12] = ptr[1]; bytes[13] = ptr[2]; bytes[14] = ptr[3]
+           }
 
-        bytes[15] = UInt8(min(max(self.cpuUsage, 0), 100))
-        let cpuFreqValue: UInt16 = UInt16(floor(self.cpuFrequency))
-        let cpuFreqBE = cpuFreqValue.bigEndian
-        withUnsafeBytes(of: cpuFreqBE) { ptr in bytes[16] = ptr[0]; bytes[17] = ptr[1] }
+           bytes[15] = UInt8(min(max(self.cpuUsage, 0), 100))
+           let cpuFreqValue: UInt16 = UInt16(floor(self.cpuFrequency))
+           let cpuFreqBE = cpuFreqValue.bigEndian
+           withUnsafeBytes(of: cpuFreqBE) { ptr in bytes[16] = ptr[0]; bytes[17] = ptr[1] }
 
-        let checksum = UInt8(bytes[1...17].reduce(0) { $0 + Int($1) } % 256)
-        bytes[18] = checksum
-        bytes[19] = 22
+           let checksum = UInt8(bytes[1...17].reduce(0) { $0 + Int($1) } % 256)
+           bytes[18] = checksum
+           bytes[19] = 22
 
-        return Data(bytes)
-    }
-}
-
+           return Data(bytes)
+       }
+   }

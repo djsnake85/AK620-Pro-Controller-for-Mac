@@ -1,3 +1,4 @@
+
 import Foundation
 
 class ContentViewModel: ObservableObject {
@@ -33,6 +34,10 @@ class ContentViewModel: ObservableObject {
     private let deviceManager = DeepcoolDeviceManager()
     private let systemMonitor = SystemMonitor()
     private var updateTask: Task<Void, Never>? = nil
+
+    // ---------------- Private variables ----------------
+    private var previousSent: Double = 0.0
+    private var previousReceived: Double = 0.0
 
     init() {
         self.cpuModel = getCPUModel()
@@ -77,10 +82,14 @@ class ContentViewModel: ObservableObject {
                     self.diskTotal = systemMonitor.diskTotal
 
                     // Network
-                    self.networkSent = systemMonitor.networkSent
-                    self.networkReceived = systemMonitor.networkReceived
-                    self.networkUploadSpeed = systemMonitor.networkUploadSpeed
-                    self.networkDownloadSpeed = systemMonitor.networkDownloadSpeed
+                    let newSent = systemMonitor.networkSent
+                    let newReceived = systemMonitor.networkReceived
+                    self.networkUploadSpeed = max(newSent - self.previousSent, 0)
+                    self.networkDownloadSpeed = max(newReceived - self.previousReceived, 0)
+                    self.previousSent = newSent
+                    self.previousReceived = newReceived
+                    self.networkSent = newSent
+                    self.networkReceived = newReceived
 
                     // GPU
                     self.gpuVRAM = systemMonitor.gpuVRAM
@@ -113,4 +122,3 @@ func getCPUModel() -> String {
     sysctlbyname("machdep.cpu.brand_string", &cpuModel, &size, nil, 0)
     return String(cString: cpuModel)
 }
-
