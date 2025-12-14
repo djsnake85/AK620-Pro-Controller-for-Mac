@@ -229,21 +229,40 @@ struct CPUCard: View {
     }
 }
 
-// ---------- GPUCardSimple ----------
+// ---------- GPUCardSimple (version simplifiée) ----------
 struct GPUCardSimple: View {
     let gpuModel: String
     let gpuVRAM: Double
 
     var body: some View {
         InfoCard {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text("Carte Graphique :").font(.headline)
-                    Image("graphics card vector").resizable().scaledToFit().frame(width: 220, height: 220)
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Carte Graphique :")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(gpuModel)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Text(String(format: "VRAM : %.1f GB", gpuVRAM))
+                            .font(.title3)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                    }
                 }
-                Text(gpuModel).font(.subheadline).foregroundColor(.secondary)
-                Text(String(format: "VRAM : %.1f GB", gpuVRAM)).font(.subheadline).foregroundColor(.secondary)
+
+                Spacer()
+
+                Image("graphics card vector")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 150, height: 150)
             }
+            .padding(.vertical, 12)
         }
         .frame(minHeight: 50)
     }
@@ -344,7 +363,7 @@ struct NetworkCard: View {
                         maxValue: 125,
                         accent: deepTeal,
                         label: "Upload",
-                        labelOffset: -25 // <-- remonte le label
+                        labelOffset: -25
                     )
                     .frame(width: 140, height: 120)
 
@@ -353,7 +372,7 @@ struct NetworkCard: View {
                         maxValue: 125,
                         accent: .orange,
                         label: "Download",
-                        labelOffset: -25 // <-- remonte le label
+                        labelOffset: -25
                     )
                     .frame(width: 140, height: 120)
                 }
@@ -416,7 +435,7 @@ struct NeedleGauge: View {
                         .position(textPos)
                 }
 
-                // --- Aiguille triangulaire avec glow ---
+                // --- Aiguille triangulaire ---
                 let needleAngle = startAngle + (animatedValue/maxValue * totalAngle)
                 let rad = needleAngle * Double.pi / 180
                 let tip = CGPoint(x: center.x + CGFloat(cos(rad)) * radius,
@@ -438,24 +457,16 @@ struct NeedleGauge: View {
                     path.addLine(to: base2)
                     path.closeSubpath()
                 }
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [accent.opacity(0.4), accent, accent.opacity(0.9)]),
-                        startPoint: .bottom,
-                        endPoint: .top
-                    )
-                )
-                .shadow(color: accent.opacity(0.6), radius: 6, x: 0, y: 0)
+                .fill(accent)
 
                 Circle()
                     .fill(accent)
                     .frame(width: 12, height: 12)
-                    .shadow(color: accent.opacity(0.7), radius: 4, x: 0, y: 0)
 
                 VStack {
                     Spacer()
                     Text(label).font(.caption).foregroundColor(.secondary)
-                        .offset(y: labelOffset) // <-- applique l'offset
+                        .offset(y: labelOffset)
                     Text(String(format: "%.2f MB/s", animatedValue))
                         .font(.caption2)
                         .foregroundColor(.primary)
@@ -504,5 +515,4 @@ struct CircularSemiGauge: View {
         }
     }
 }
-
 
