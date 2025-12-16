@@ -1,35 +1,38 @@
 import Foundation
 import IOKit
 import Darwin
-import Network
 
 class SystemMonitor: ObservableObject {
+    // ---------- CPU ----------
     @Published var cpuFrequency: Double = 0.0
     @Published var cpuUsage: Double = 0.0
     @Published var cpuTemperature: Double = 0.0
     @Published var cpuTDP: Double = 0.0
     @Published var cpuCoreCount: Int = 0
 
+    // ---------- RAM ----------
     @Published var ramUsed: Double = 0.0
     @Published var ramTotal: Double = 0.0
     @Published var ramFrequency: Double = 0.0
 
+    // ---------- Disk ----------
     @Published var diskUsed: Double = 0.0
     @Published var diskTotal: Double = 0.0
 
+    // ---------- Network ----------
     @Published var networkSent: Double = 0.0
     @Published var networkReceived: Double = 0.0
     @Published var networkUploadSpeed: Double = 0.0
     @Published var networkDownloadSpeed: Double = 0.0
 
     // ---------- GPU ----------
-    @Published var gpuVRAM: Double = 0.0 // en GB
-    @Published var gpuUsage: Double = 0.0 // en %
+    @Published var gpuVRAM: Double = 0.0
+    @Published var gpuUsage: Double = 0.0
 
+    // ---------- Private ----------
     private var previousSent: UInt64 = 0
     private var previousReceived: UInt64 = 0
-    private var previousTime: Date = Date()
-
+    private var previousNetworkCheck: Date = Date()
     private var pgMonitor: PowerGadgetMonitor?
 
     init() {
@@ -47,6 +50,7 @@ class SystemMonitor: ObservableObject {
         }
         self.updateMemoryUsage()
         self.updateGPUUsage()
+        self.updateDiskAndNetwork()
     }
 
     // ---------- CPU ----------
@@ -57,6 +61,7 @@ class SystemMonitor: ObservableObject {
         return count
     }
 
+    // ---------- RAM ----------
     private func updateMemoryUsage() {
         var stats = vm_statistics64()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.stride / MemoryLayout<integer_t>.stride)
@@ -109,27 +114,27 @@ class SystemMonitor: ObservableObject {
 
     // ---------- Disk & Network ----------
     func updateDiskAndNetwork() {
+        // Disk
         if let attrs = try? FileManager.default.attributesOfFileSystem(forPath: "/") {
-            let used = (attrs[.systemSize] as? NSNumber)?.doubleValue ?? 0.0
+            let total = (attrs[.systemSize] as? NSNumber)?.doubleValue ?? 0.0
             let free = (attrs[.systemFreeSize] as? NSNumber)?.doubleValue ?? 0.0
-            let total = used
             DispatchQueue.main.async {
-                self.diskUsed = total - free
-                self.diskTotal = total
+                self.diskTotal = total / 1_073_741_824
+                self.diskUsed = (total - free) / 1_073_741_824
             }
         }
 
+        // Network
         var sent: UInt64 = 0
         var received: UInt64 = 0
-
         var addrs: UnsafeMutablePointer<ifaddrs>? = nil
         if getifaddrs(&addrs) == 0, let firstAddr = addrs {
             var ptr = firstAddr
             while ptr.pointee.ifa_next != nil {
                 let data = ptr.pointee.ifa_data
                 if let data = data?.assumingMemoryBound(to: if_data.self).pointee {
-                    sent += UInt64(data.ifi_obytes)
-                    received += UInt64(data.ifi_ibytes)
+                    sent = sent &+ UInt64(data.ifi_obytes)
+                    received = received &+ UInt64(data.ifi_ibytes)
                 }
                 ptr = ptr.pointee.ifa_next!
             }
@@ -137,15 +142,19 @@ class SystemMonitor: ObservableObject {
         }
 
         let now = Date()
-        let interval = now.timeIntervalSince(previousTime)
+        let interval = now.timeIntervalSince(previousNetworkCheck)
         if interval > 0 {
+            let uploadDelta = max(sent, previousSent) - min(sent, previousSent)
+            let downloadDelta = max(received, previousReceived) - min(received, previousReceived)
             DispatchQueue.main.async {
-                self.networkUploadSpeed = Double(sent - self.previousSent) / interval
-                self.networkDownloadSpeed = Double(received - self.previousReceived) / interval
+                self.networkUploadSpeed = Double(uploadDelta) / interval
+                self.networkDownloadSpeed = Double(downloadDelta) / interval
             }
         }
+
         previousSent = sent
         previousReceived = received
+        previousNetworkCheck = now
 
         DispatchQueue.main.async {
             self.networkSent = Double(sent)
@@ -168,12 +177,10 @@ class SystemMonitor: ObservableObject {
                 return
             }
 
-            // Récupère le modèle GPU
             let model = output.components(separatedBy: "\n").first { $0.trimmingCharacters(in: .whitespaces).starts(with: "Chipset Model:") }?
                 .replacingOccurrences(of: "Chipset Model:", with: "")
                 .trimmingCharacters(in: .whitespaces) ?? "Inconnu"
 
-            // Récupère la VRAM
             if let vramLine = output.components(separatedBy: "\n").first(where: { $0.trimmingCharacters(in: .whitespaces).starts(with: "VRAM (Total):") }) {
                 let vramStr = vramLine.replacingOccurrences(of: "VRAM (Total):", with: "").trimmingCharacters(in: .whitespaces)
                 if vramStr.contains("GB"), let value = Double(vramStr.replacingOccurrences(of: "GB", with: "").trimmingCharacters(in: .whitespaces)) {
@@ -194,28 +201,20 @@ class SystemMonitor: ObservableObject {
             task.arguments = ["sudo", "powermetrics", "--samplers", "smc", "-n1"]
             let pipe = Pipe()
             task.standardOutput = pipe
-            task.standardError = Pipe() // ignore errors
+            task.standardError = Pipe()
 
-            do {
-                try task.run()
-            } catch {
-                print("Erreur powermetrics: \(error)")
-                return
-            }
+            do { try task.run() } catch { return }
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             guard let output = String(data: data, encoding: .utf8) else { return }
 
-            let lines = output.split(separator: "\n")
-            for line in lines {
+            for line in output.split(separator: "\n") {
                 if line.contains("GPU Busy") {
                     if let percentStr = line.split(separator: ":").last?
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                         .replacingOccurrences(of: "%", with: ""),
                        let percent = Double(percentStr) {
-                        DispatchQueue.main.async {
-                            self.gpuUsage = percent
-                        }
+                        DispatchQueue.main.async { self.gpuUsage = percent }
                         break
                     }
                 }
@@ -224,31 +223,32 @@ class SystemMonitor: ObservableObject {
     }
 
     // ---------- HUD Command ----------
-       func createHUDCommand() -> Data {
-           var bytes = [UInt8](repeating: 0, count: 20)
-           bytes[0] = 16
-           let comando: [UInt8] = [104, 1, 4, 13, 1, 2, 8]
-           for i in 0..<min(7, comando.count) { bytes[1+i] = comando[i] }
+    func createHUDCommand() -> Data {
+        var bytes = [UInt8](repeating: 0, count: 20)
+        bytes[0] = 16
+        let comando: [UInt8] = [104, 1, 4, 13, 1, 2, 8]
+        for i in 0..<min(7, comando.count) { bytes[1+i] = comando[i] }
 
-           let tdp: UInt16 = UInt16(self.cpuTDP)
-           let tdpBE = tdp.bigEndian
-           withUnsafeBytes(of: tdpBE) { ptr in bytes[8] = ptr[0]; bytes[9] = ptr[1] }
+        let tdp: UInt16 = UInt16(self.cpuTDP)
+        let tdpBE = tdp.bigEndian
+        withUnsafeBytes(of: tdpBE) { ptr in bytes[8] = ptr[0]; bytes[9] = ptr[1] }
 
-           let cpuTempF32: Float32 = Float32(self.cpuTemperature)
-           let cpuTempBitsBE = cpuTempF32.bitPattern.bigEndian
-           withUnsafeBytes(of: cpuTempBitsBE) { ptr in
-               bytes[11] = ptr[0]; bytes[12] = ptr[1]; bytes[13] = ptr[2]; bytes[14] = ptr[3]
-           }
+        let cpuTempF32: Float32 = Float32(self.cpuTemperature)
+        let cpuTempBitsBE = cpuTempF32.bitPattern.bigEndian
+        withUnsafeBytes(of: cpuTempBitsBE) { ptr in
+            bytes[11] = ptr[0]; bytes[12] = ptr[1]; bytes[13] = ptr[2]; bytes[14] = ptr[3]
+        }
 
-           bytes[15] = UInt8(min(max(self.cpuUsage, 0), 100))
-           let cpuFreqValue: UInt16 = UInt16(floor(self.cpuFrequency))
-           let cpuFreqBE = cpuFreqValue.bigEndian
-           withUnsafeBytes(of: cpuFreqBE) { ptr in bytes[16] = ptr[0]; bytes[17] = ptr[1] }
+        bytes[15] = UInt8(min(max(self.cpuUsage, 0), 100))
+        let cpuFreqValue: UInt16 = UInt16(floor(self.cpuFrequency))
+        let cpuFreqBE = cpuFreqValue.bigEndian
+        withUnsafeBytes(of: cpuFreqBE) { ptr in bytes[16] = ptr[0]; bytes[17] = ptr[1] }
 
-           let checksum = UInt8(bytes[1...17].reduce(0) { $0 + Int($1) } % 256)
-           bytes[18] = checksum
-           bytes[19] = 22
+        let checksum = UInt8(bytes[1...17].reduce(0) { $0 + Int($1) } % 256)
+        bytes[18] = checksum
+        bytes[19] = 22
 
-           return Data(bytes)
-       }
-   }
+        return Data(bytes)
+    }
+}
+
