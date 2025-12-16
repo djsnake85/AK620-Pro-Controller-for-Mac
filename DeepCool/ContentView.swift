@@ -257,10 +257,10 @@ struct GPUCardSimple: View {
 
                 Spacer()
 
-                Image("graphics card vector")
+                Image("GPU R")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 150, height: 150)
+                    .frame(width: 250, height: 250)
             }
             .padding(.vertical, 12)
         }
