@@ -1,136 +1,120 @@
 import Foundation
 
-// Suppose your bridging header already includes the headers:
-//   #include <IntelPowerGadget/PowerGadgetLib.h>
-// And according to the header, we have:
-//   typedef uint64_t PGSampleID;
+// Bridging header requis :
+// #include <IntelPowerGadget/PowerGadgetLib.h>
+// typedef uint64_t PGSampleID;
 
-class PowerGadgetMonitor {
-    // We will use PGSampleID (UInt64) to represent a sample.
-    private var previousSample: PGSampleID? = nil
-    private var currentSample: PGSampleID? = nil
+final class PowerGadgetMonitor {
 
-    /// Initializes the monitor and reads the first sample.
+    // MARK: - Samples
+    private var previousSample: PGSampleID?
+    private var currentSample: PGSampleID?
+
+    // MARK: - Init / Deinit
     init?() {
-        // initializes the API; PG_Initialize() returns Bool (true if successful)
-        let initRet = PG_Initialize()
-        if !initRet {
-            print("Error initializing Intel Power Gadget")
+        guard PG_Initialize() else {
+            print("❌ Intel Power Gadget initialization failed")
             return nil
         }
-        // Leia o primeiro sample
-        var sample: PGSampleID = 0
-        let ret = withUnsafeMutablePointer(to: &sample) { pointer in
-            PG_ReadSample(0, pointer)
+
+        var firstSample: PGSampleID = 0
+        let ok = withUnsafeMutablePointer(to: &firstSample) {
+            PG_ReadSample(0, $0)
         }
-        if !ret {
-            print("Error reading initial sample: \(ret)")
+
+        guard ok else {
+            print("❌ Failed to read initial PowerGadget sample")
+            PG_Shutdown()
             return nil
         }
-        currentSample = sample
+
+        currentSample = firstSample
     }
-    
+
     deinit {
-        // Release retained samples, if any
-        if let prev = previousSample {
-            PGSample_Release(prev)
-        }
-        if let curr = currentSample {
-            PGSample_Release(curr)
-        }
+        if let prev = previousSample { PGSample_Release(prev) }
+        if let curr = currentSample { PGSample_Release(curr) }
         PG_Shutdown()
     }
-    
-    /// Updates the samples:
-    /// - Releases the previous sample (if it exists)
-    /// - Moves the current sample to previousSample
-    /// - Reads a new sample to currentSample
-    /// Returns true if the read is successful.
+
+    // MARK: - Sample Update
+    @discardableResult
     func updateSamples() -> Bool {
-        // Release the previous sample, if it exists
         if let prev = previousSample {
             PGSample_Release(prev)
         }
-        // Move the current sample to previousSample
+
         previousSample = currentSample
-        
-        // Read a new sample into currentSample
+
         var newSample: PGSampleID = 0
-        let ret = withUnsafeMutablePointer(to: &newSample) { pointer in
-            PG_ReadSample(0, pointer)
+        let ok = withUnsafeMutablePointer(to: &newSample) {
+            PG_ReadSample(0, $0)
         }
-        if !ret {
-            print("Error reading new sample: \(ret)")
+
+        guard ok else {
+            print("❌ Failed to read PowerGadget sample")
             return false
         }
+
         currentSample = newSample
-        
         return true
     }
-    
-    /// Obtém a potência do pacote (TDP dinâmico) em Watts.
-    func getPackagePower() -> Double? {
-        guard let prev = previousSample, let curr = currentSample else {
-            print("Insufficient samples for PGSample_GetPackagePower")
-            return nil
-        }
-        var pkgPower: Double = 0.0
-        var energyJoules: Double = 0.0
-        let ret = PGSample_GetPackagePower(prev, curr, &pkgPower, &energyJoules)
-        if !ret {
-            print("Error in PGSample_GetPackagePower: \(ret)")
-            return nil
-        }
-        return pkgPower
-    }
-    
-    ///Obtient la température du package (par exemple la température du processeur) en °C.
+
+    // MARK: - CPU Metrics
+
+    /// Température instantanée du package CPU (°C)
+    /// ⚠️ Un seul sample suffit
     func getPackageTemperature() -> Double? {
-        guard let prev = previousSample, let curr = currentSample else {
-            print("Insufficient samples for PGSample_GetPackageTemperature")
-            return nil
-        }
-        var pkgTemp: Double = 0.0,
-            minTemp: Double = 0.0,
-            maxTemp: Double = 0.0
-        
-        let ret = PGSample_GetIATemperature(curr, &pkgTemp, &minTemp, &maxTemp)
-        if !ret {
-            print("Error in PGSample_GetPackageTemperature: \(ret)")
-            return nil
-        }
-        return maxTemp
+        guard let curr = currentSample else { return nil }
+
+        var temp: Double = 0
+        var minTemp: Double = 0
+        var maxTemp: Double = 0
+
+        let ok = PGSample_GetIATemperature(curr, &temp, &minTemp, &maxTemp)
+        guard ok, temp > 0 else { return nil }
+
+        return temp
     }
-    
-    /// Obtient l'utilisation de l'IA (utilisation du processeur) en pourcentage.
+
+    /// Consommation du package CPU (Watts)
+    /// ⚠️ nécessite 2 samples
+    func getPackagePower() -> Double? {
+        guard let prev = previousSample, let curr = currentSample else { return nil }
+
+        var power: Double = 0
+        var energy: Double = 0
+
+        let ok = PGSample_GetPackagePower(prev, curr, &power, &energy)
+        guard ok, power >= 0 else { return nil }
+
+        return power
+    }
+
+    /// Utilisation CPU (%) sur les unités IA
     func getIAUtilization() -> Double? {
-        guard let prev = previousSample, let curr = currentSample else {
-            print("Insufficient samples for PGSample_GetIAUtilization")
-            return nil
-        }
-        var iaUtil: Double = 0.0
-        let ret = PGSample_GetIAUtilization(prev, curr, &iaUtil)
-        if !ret {
-            print("Error in PGSample_GetIAUtilization: \(ret)")
-            return nil
-        }
-        return iaUtil
+        guard let prev = previousSample, let curr = currentSample else { return nil }
+
+        var util: Double = 0
+        let ok = PGSample_GetIAUtilization(prev, curr, &util)
+        guard ok else { return nil }
+
+        return min(max(util, 0), 100)
     }
-    
-    /// Obtient la fréquence de requête (Core Req) en GHz.
+
+    /// Fréquence demandée CPU (MHz)
+    /// ⚠️ retourne la fréquence requise, pas la réelle
     func getRequestFrequency() -> Double? {
-        guard let prev = previousSample, let curr = currentSample else {
-            print("Insufficient samples for PGSample_GetIAFrequency")
-            return nil
-        }
-        var reqFreq: Double = 0.0
-        var minFreq: Double = 0.0
-        var maxFreq: Double = 0.0
-        let ret = PGSample_GetIAFrequencyRequest(curr, &reqFreq, &minFreq, &maxFreq)
-        if !ret {
-            print("Error in PGSample_GetIAFrequency: \(ret)")
-            return nil
-        }
-        return reqFreq
+        guard let curr = currentSample else { return nil }
+
+        var freq: Double = 0
+        var minFreq: Double = 0
+        var maxFreq: Double = 0
+
+        let ok = PGSample_GetIAFrequencyRequest(curr, &freq, &minFreq, &maxFreq)
+        guard ok, freq > 0 else { return nil }
+
+        return freq
     }
 }
+
