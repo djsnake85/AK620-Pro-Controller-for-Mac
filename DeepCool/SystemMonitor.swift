@@ -11,13 +11,13 @@ class SystemMonitor: ObservableObject {
     @Published var cpuCoreCount: Int = 0
 
     // ---------- RAM ----------
-    @Published var ramUsed: Double = 0.0
-    @Published var ramTotal: Double = 0.0
+    @Published var ramUsed: Double = 0.0   // en Go
+    @Published var ramTotal: Double = 0.0  // en Go
     @Published var ramFrequency: Double = 0.0
 
     // ---------- Disk ----------
-    @Published var diskUsed: Double = 0.0
-    @Published var diskTotal: Double = 0.0
+    @Published var diskUsed: Double = 0.0  // en Go
+    @Published var diskTotal: Double = 0.0 // en Go
 
     // ---------- Network ----------
     @Published var networkSent: Double = 0.0
@@ -83,8 +83,8 @@ class SystemMonitor: ObservableObject {
             let used = active + inactive + wired + compressed
             let total = used + free
             DispatchQueue.main.async {
-                self.ramUsed = used / 1_073_741_824
-                self.ramTotal = total / 1_073_741_824
+                self.ramUsed = used / 1_073_741_824   // déjà en Go
+                self.ramTotal = total / 1_073_741_824 // déjà en Go
             }
         }
     }
@@ -119,8 +119,8 @@ class SystemMonitor: ObservableObject {
             let total = (attrs[.systemSize] as? NSNumber)?.doubleValue ?? 0.0
             let free = (attrs[.systemFreeSize] as? NSNumber)?.doubleValue ?? 0.0
             DispatchQueue.main.async {
-                self.diskTotal = total / 1_073_741_824
-                self.diskUsed = (total - free) / 1_073_741_824
+                self.diskTotal = total / 1_073_741_824   // en Go
+                self.diskUsed = (total - free) / 1_073_741_824 // en Go
             }
         }
 
@@ -251,4 +251,3 @@ class SystemMonitor: ObservableObject {
         return Data(bytes)
     }
 }
-

@@ -1,8 +1,3 @@
-//
-// ContentView.swift
-// DeepCoolStyleDashboard - version aiguilles réseau style Speedtest
-//
-
 import SwiftUI
 import AppKit
 
@@ -229,7 +224,7 @@ struct CPUCard: View {
     }
 }
 
-// ---------- GPUCardSimple (version simplifiée) ----------
+// ---------- GPUCardSimple ----------
 struct GPUCardSimple: View {
     let gpuModel: String
     let gpuVRAM: Double
@@ -294,7 +289,7 @@ struct MemoryCard: View {
                 }
 
                 HStack {
-                    Text(String(format: "%.0f / %.0f GB", ramUsed, ramTotal)).font(.caption2).foregroundColor(.secondary)
+                    Text(String(format: "%.2f / %.2f GB", ramUsed, ramTotal)).font(.caption2).foregroundColor(.secondary)
                     Spacer()
                     Text(String(format: "%d%%", Int(usagePercent * 100))).font(.caption2).foregroundColor(.secondary)
                 }
@@ -331,10 +326,8 @@ struct DiskCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
 
-                let usedGB = diskUsed / 1_073_741_824
-                let totalGB = diskTotal / 1_073_741_824
                 HStack {
-                    Text(String(format: "%.2f / %.2f Go", usedGB, totalGB)).font(.caption2).foregroundColor(.secondary)
+                    Text(String(format: "%.2f / %.2f GB", diskUsed, diskTotal)).font(.caption2).foregroundColor(.secondary)
                     Spacer()
                     Text(String(format: "%d%%", Int(usagePercent * 100))).font(.caption2).foregroundColor(.secondary)
                 }
@@ -359,7 +352,7 @@ struct NetworkCard: View {
 
                 HStack(spacing: 24) {
                     NeedleGauge(
-                        value: networkUploadSpeed / 1_048_576  ,// MB/s
+                        value: networkUploadSpeed / 1_048_576,
                         maxValue: 125,
                         accent: deepTeal,
                         label: "Upload",
@@ -435,7 +428,6 @@ struct NeedleGauge: View {
                         .position(textPos)
                 }
 
-                // --- Aiguille triangulaire ---
                 let needleAngle = startAngle + (animatedValue/maxValue * totalAngle)
                 let rad = needleAngle * Double.pi / 180
                 let tip = CGPoint(x: center.x + CGFloat(cos(rad)) * radius,
@@ -515,4 +507,3 @@ struct CircularSemiGauge: View {
         }
     }
 }
-
