@@ -21,9 +21,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         createMainWindowIfNeeded()
         setupBindings()
 
-        mainWindow?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        toggleWindowMenuItem.title = "Masquer la fenêtre"
+        // DÉMARRAGE EN MODE RÉDUIT : fenêtre cachée
+        toggleWindowMenuItem.title = "Afficher la fenêtre"
     }
 
     // MARK: - Barre de statut
@@ -79,10 +78,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         mainWindow = window
     }
 
+    // MARK: - Afficher / masquer la fenêtre
     @objc private func toggleWindow() {
         createMainWindowIfNeeded()
         guard let window = mainWindow else { return }
-        
+
         if window.isVisible {
             window.orderOut(nil)
             toggleWindowMenuItem.title = "Afficher la fenêtre"
@@ -119,11 +119,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let usageFormatted = String(format: "%.0f", usage)
         let freqFormatted = String(format: "%.2f", frequency / 1000.0)
 
-        // Couleurs dynamiques
         let tempColor: NSColor = temp > 75 ? .systemRed : temp >= 65 ? .systemOrange : NSColor.labelColor
         let usageColor: NSColor = usage > 90 ? .systemRed : usage >= 70 ? .systemOrange : NSColor.labelColor
 
-        // ------------------------------
         // Menu Température
         let tempString = NSMutableAttributedString()
         if let thermometerIcon = NSImage(systemSymbolName: "thermometer", accessibilityDescription: "Thermometer") {
@@ -144,7 +142,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ]))
         cpuTempMenuItem.attributedTitle = tempString
 
-        // ------------------------------
         // Menu Usage CPU
         let usageString = NSMutableAttributedString()
         if let usageIcon = NSImage(systemSymbolName: "gauge", accessibilityDescription: "CPU Usage") {
@@ -165,12 +162,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ]))
         cpuUsageMenuItem.attributedTitle = usageString
 
-        // ------------------------------
-        // Bouton barre de statut : icône DeepCool + thermomètre + usage + fréquence
+        // Barre de statut : icône DeepCool + thermomètre + usage + fréquence
         if let button = statusItem.button {
             let buttonString = NSMutableAttributedString()
 
-            // Icône DeepCool
             if let deepcoolIcon = NSImage(named: "deepcool-logo") {
                 deepcoolIcon.isTemplate = false
                 let attachment = NSTextAttachment()
@@ -179,7 +174,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 buttonString.append(NSAttributedString(string: " "))
             }
 
-            // Thermomètre
             if let thermometerIcon = NSImage(systemSymbolName: "thermometer", accessibilityDescription: "Thermometer") {
                 thermometerIcon.isTemplate = true
                 let tintedIcon = thermometerIcon.copy() as! NSImage
@@ -193,7 +187,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 buttonString.append(NSAttributedString(string: " Temp:\(tempFormatted)°C | "))
             }
 
-            // Usage CPU
             if let usageIcon = NSImage(systemSymbolName: "gauge", accessibilityDescription: "CPU Usage") {
                 usageIcon.isTemplate = true
                 let tintedIcon = usageIcon.copy() as! NSImage
@@ -207,7 +200,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 buttonString.append(NSAttributedString(string: " Usage: \(usageFormatted)% | "))
             }
 
-            // Fréquence CPU
             buttonString.append(NSAttributedString(string: " Freq:\(freqFormatted) GHz", attributes: [
                 .foregroundColor: NSColor.labelColor,
                 .font: NSFont.systemFont(ofSize: 14, weight: .light)
