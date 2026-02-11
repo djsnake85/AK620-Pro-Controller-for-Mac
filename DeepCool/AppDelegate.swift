@@ -21,7 +21,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         createMainWindowIfNeeded()
         setupBindings()
 
-        // DÉMARRAGE EN MODE RÉDUIT : fenêtre cachée
         toggleWindowMenuItem.title = "Afficher la fenêtre"
     }
 
@@ -122,95 +121,84 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let tempColor: NSColor = temp > 75 ? .systemRed : temp >= 65 ? .systemOrange : NSColor.labelColor
         let usageColor: NSColor = usage > 90 ? .systemRed : usage >= 70 ? .systemOrange : NSColor.labelColor
 
-        // Menu Température
-        let tempString = NSMutableAttributedString()
-        if let thermometerIcon = NSImage(systemSymbolName: "thermometer", accessibilityDescription: "Thermometer") {
-            thermometerIcon.isTemplate = true
-            let tintedIcon = thermometerIcon.copy() as! NSImage
-            tintedIcon.lockFocus()
-            tempColor.set()
-            NSRect(origin: .zero, size: tintedIcon.size).fill(using: .sourceAtop)
-            tintedIcon.unlockFocus()
-            let attachment = NSTextAttachment()
-            attachment.image = resizeImage(image: tintedIcon, width: 14, height: 14)
-            tempString.append(NSAttributedString(attachment: attachment))
-            tempString.append(NSAttributedString(string: " "))
+        // Menu Température et Usage CPU
+        cpuTempMenuItem.attributedTitle = attributedMenuItem(title: tempFormatted + "°C", systemSymbol: "thermometer", color: tempColor)
+        cpuUsageMenuItem.attributedTitle = attributedMenuItem(title: usageFormatted + "%", systemSymbol: "gauge", color: usageColor)
+
+        // Barre de statut
+        guard let button = statusItem.button else { return }
+        let statusString = NSMutableAttributedString()
+
+        // Logo DeepCool coloré
+        if let logo = NSImage(named: "deepcool-logo") {
+            logo.isTemplate = false
+            let attach = NSTextAttachment()
+            attach.image = resizeImage(image: logo, width: 18, height: 18)
+            statusString.append(NSAttributedString(attachment: attach))
+            statusString.append(NSAttributedString(string: " "))
         }
-        tempString.append(NSAttributedString(string: "\(tempFormatted)°C", attributes: [
-            .foregroundColor: tempColor,
+
+        // Température
+        statusString.append(attributedTextWithSymbol(symbol: "thermometer", text: "\(tempFormatted)°C", color: tempColor))
+        statusString.append(NSAttributedString(string: " | "))
+
+        // Usage CPU
+        statusString.append(attributedTextWithSymbol(symbol: "gauge", text: "\(usageFormatted)%", color: usageColor))
+        statusString.append(NSAttributedString(string: " | "))
+
+        // Fréquence CPU
+        statusString.append(NSAttributedString(string: "Freq: \(freqFormatted)GHz", attributes: [
+            .foregroundColor: NSColor.labelColor,
             .font: NSFont.systemFont(ofSize: 13, weight: .regular)
         ]))
-        cpuTempMenuItem.attributedTitle = tempString
 
-        // Menu Usage CPU
-        let usageString = NSMutableAttributedString()
-        if let usageIcon = NSImage(systemSymbolName: "gauge", accessibilityDescription: "CPU Usage") {
-            usageIcon.isTemplate = true
-            let tintedIcon = usageIcon.copy() as! NSImage
-            tintedIcon.lockFocus()
-            usageColor.set()
-            NSRect(origin: .zero, size: tintedIcon.size).fill(using: .sourceAtop)
-            tintedIcon.unlockFocus()
-            let attachment = NSTextAttachment()
-            attachment.image = resizeImage(image: tintedIcon, width: 14, height: 14)
-            usageString.append(NSAttributedString(attachment: attachment))
-            usageString.append(NSAttributedString(string: " "))
-        }
-        usageString.append(NSAttributedString(string: "\(usageFormatted)%", attributes: [
-            .foregroundColor: usageColor,
-            .font: NSFont.systemFont(ofSize: 13, weight: .regular)
-        ]))
-        cpuUsageMenuItem.attributedTitle = usageString
-
-        // Barre de statut : icône DeepCool + thermomètre + usage + fréquence
-        if let button = statusItem.button {
-            let buttonString = NSMutableAttributedString()
-
-            if let deepcoolIcon = NSImage(named: "deepcool-logo") {
-                deepcoolIcon.isTemplate = false
-                let attachment = NSTextAttachment()
-                attachment.image = resizeImage(image: deepcoolIcon, width: 15, height: 15)
-                buttonString.append(NSAttributedString(attachment: attachment))
-                buttonString.append(NSAttributedString(string: " "))
-            }
-
-            if let thermometerIcon = NSImage(systemSymbolName: "thermometer", accessibilityDescription: "Thermometer") {
-                thermometerIcon.isTemplate = true
-                let tintedIcon = thermometerIcon.copy() as! NSImage
-                tintedIcon.lockFocus()
-                tempColor.set()
-                NSRect(origin: .zero, size: tintedIcon.size).fill(using: .sourceAtop)
-                tintedIcon.unlockFocus()
-                let attachment = NSTextAttachment()
-                attachment.image = resizeImage(image: tintedIcon, width: 15, height: 16)
-                buttonString.append(NSAttributedString(attachment: attachment))
-                buttonString.append(NSAttributedString(string: " Temp:\(tempFormatted)°C | "))
-            }
-
-            if let usageIcon = NSImage(systemSymbolName: "gauge", accessibilityDescription: "CPU Usage") {
-                usageIcon.isTemplate = true
-                let tintedIcon = usageIcon.copy() as! NSImage
-                tintedIcon.lockFocus()
-                usageColor.set()
-                NSRect(origin: .zero, size: tintedIcon.size).fill(using: .sourceAtop)
-                tintedIcon.unlockFocus()
-                let attachment = NSTextAttachment()
-                attachment.image = resizeImage(image: tintedIcon, width: 14, height: 14)
-                buttonString.append(NSAttributedString(attachment: attachment))
-                buttonString.append(NSAttributedString(string: " Usage: \(usageFormatted)% | "))
-            }
-
-            buttonString.append(NSAttributedString(string: " Freq:\(freqFormatted) GHz", attributes: [
-                .foregroundColor: NSColor.labelColor,
-                .font: NSFont.systemFont(ofSize: 14, weight: .light)
-            ]))
-
-            button.attributedTitle = buttonString
-            button.image = nil
-        }
+        button.attributedTitle = statusString
+        button.image = nil
     }
 
-    // MARK: - Redimensionner une image
+    // MARK: - Helpers
+    private func attributedMenuItem(title: String, systemSymbol: String, color: NSColor) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        if let icon = NSImage(systemSymbolName: systemSymbol, accessibilityDescription: nil) {
+            icon.isTemplate = true
+            let tinted = icon.copy() as! NSImage
+            tinted.lockFocus()
+            color.set()
+            NSRect(origin: .zero, size: tinted.size).fill(using: .sourceAtop)
+            tinted.unlockFocus()
+            let attach = NSTextAttachment()
+            attach.image = resizeImage(image: tinted, width: 14, height: 14)
+            result.append(NSAttributedString(attachment: attach))
+            result.append(NSAttributedString(string: " "))
+        }
+        result.append(NSAttributedString(string: title, attributes: [
+            .foregroundColor: color,
+            .font: NSFont.systemFont(ofSize: 13, weight: .regular)
+        ]))
+        return result
+    }
+
+    private func attributedTextWithSymbol(symbol: String, text: String, color: NSColor) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        if let icon = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) {
+            icon.isTemplate = true
+            let tinted = icon.copy() as! NSImage
+            tinted.lockFocus()
+            color.set()
+            NSRect(origin: .zero, size: tinted.size).fill(using: .sourceAtop)
+            tinted.unlockFocus()
+            let attach = NSTextAttachment()
+            attach.image = resizeImage(image: tinted, width: 14, height: 14)
+            result.append(NSAttributedString(attachment: attach))
+            result.append(NSAttributedString(string: " "))
+        }
+        result.append(NSAttributedString(string: text, attributes: [
+            .foregroundColor: color,
+            .font: NSFont.systemFont(ofSize: 13, weight: .regular)
+        ]))
+        return result
+    }
+
     private func resizeImage(image: NSImage, width: CGFloat, height: CGFloat) -> NSImage {
         let resized = NSImage(size: NSSize(width: width, height: height))
         resized.lockFocus()
@@ -229,7 +217,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 }
 
-// Classe SettingsWindowController (exemple)
+// Exemple SettingsWindowController
 class SettingsWindowController: NSWindowController {
     override var windowNibName: NSNib.Name? {
         return NSNib.Name("SettingsWindow")
