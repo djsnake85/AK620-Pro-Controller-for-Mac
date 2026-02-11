@@ -117,4 +117,3 @@ final class PowerGadgetMonitor {
         return freq
     }
 }
-
