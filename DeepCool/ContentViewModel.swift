@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 class ContentViewModel: ObservableObject {
     // ---------- CPU ----------
@@ -103,3 +104,4 @@ func getCPUModel() -> String {
     sysctlbyname("machdep.cpu.brand_string", &cpuModel, &size, nil, 0)
     return String(cString: cpuModel)
 }
+
