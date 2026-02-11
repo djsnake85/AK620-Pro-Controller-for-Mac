@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 
 class ContentViewModel: ObservableObject {
+
     // ---------- CPU ----------
     @Published var cpuFrequency: Double = 0.0
     @Published var cpuUsage: Double = 0.0
@@ -35,16 +36,21 @@ class ContentViewModel: ObservableObject {
     private let systemMonitor = SystemMonitor()
     private var updateTask: Task<Void, Never>? = nil
 
+    // 🔥 Interval configurable
+    private let updateInterval: UInt64 = 1_000_000_000
+
     init() {
         self.cpuModel = getCPUModel()
         self.cpuCoreCount = ProcessInfo.processInfo.processorCount
 
-        Task {
-            let model = await systemMonitor.fetchGPUModel()
+        Task.detached(priority: .background) { [weak self] in
+            guard let self else { return }
+            let model = await self.systemMonitor.fetchGPUModel()
+
             await MainActor.run {
                 self.gpuModel = model
-                self.gpuVRAM = systemMonitor.gpuVRAM
-                self.gpuUsage = systemMonitor.gpuUsage
+                self.gpuVRAM = self.systemMonitor.gpuVRAM
+                self.gpuUsage = self.systemMonitor.gpuUsage
             }
         }
 
@@ -53,42 +59,72 @@ class ContentViewModel: ObservableObject {
 
     func startUpdates() {
         updateTask?.cancel()
-        updateTask = Task {
+
+        updateTask = Task.detached(priority: .background) { [weak self] in
+            guard let self else { return }
+
             while !Task.isCancelled {
-                systemMonitor.updateSystemMetrics()
+
+                self.systemMonitor.updateSystemMetrics()
+
+                // 🔥 snapshot local (évite accès multiples)
+                let monitor = self.systemMonitor
+
+                let cpuFrequency = monitor.cpuFrequency
+                let cpuUsage = monitor.cpuUsage
+                let cpuTemperature = monitor.cpuTemperature
+                let cpuTDP = monitor.cpuTDP
+
+                let ramUsed = monitor.ramUsed
+                let ramTotal = monitor.ramTotal
+                let ramFrequency = monitor.ramFrequency
+
+                let diskUsed = monitor.diskUsed
+                let diskTotal = monitor.diskTotal
+
+                let networkSent = monitor.networkSent
+                let networkReceived = monitor.networkReceived
+                let networkUploadSpeed = monitor.networkUploadSpeed
+                let networkDownloadSpeed = monitor.networkDownloadSpeed
+
+                let gpuVRAM = monitor.gpuVRAM
+                let gpuUsage = monitor.gpuUsage
 
                 await MainActor.run {
-                    self.cpuFrequency = systemMonitor.cpuFrequency
-                    self.cpuUsage = systemMonitor.cpuUsage
-                    self.cpuTemperature = systemMonitor.cpuTemperature
-                    self.cpuTDP = systemMonitor.cpuTDP
+                    // 🔥 update groupé (moins de refresh UI)
+                    self.cpuFrequency = cpuFrequency
+                    self.cpuUsage = cpuUsage
+                    self.cpuTemperature = cpuTemperature
+                    self.cpuTDP = cpuTDP
 
-                    self.ramUsed = systemMonitor.ramUsed
-                    self.ramTotal = systemMonitor.ramTotal
-                    self.ramFrequency = systemMonitor.ramFrequency
+                    self.ramUsed = ramUsed
+                    self.ramTotal = ramTotal
+                    self.ramFrequency = ramFrequency
 
-                    self.diskUsed = systemMonitor.diskUsed
-                    self.diskTotal = systemMonitor.diskTotal
+                    self.diskUsed = diskUsed
+                    self.diskTotal = diskTotal
 
-                    self.networkSent = systemMonitor.networkSent
-                    self.networkReceived = systemMonitor.networkReceived
-                    self.networkUploadSpeed = systemMonitor.networkUploadSpeed
-                    self.networkDownloadSpeed = systemMonitor.networkDownloadSpeed
+                    self.networkSent = networkSent
+                    self.networkReceived = networkReceived
+                    self.networkUploadSpeed = networkUploadSpeed
+                    self.networkDownloadSpeed = networkDownloadSpeed
 
-                    self.gpuVRAM = systemMonitor.gpuVRAM
-                    self.gpuUsage = systemMonitor.gpuUsage
+                    self.gpuVRAM = gpuVRAM
+                    self.gpuUsage = gpuUsage
                 }
 
-                let commandData = systemMonitor.createHUDCommand()
-                deviceManager.sendCommand(commandData)
+                // 🔥 hors main thread
+                let commandData = monitor.createHUDCommand()
+                self.deviceManager.sendCommand(commandData)
 
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(nanoseconds: self.updateInterval)
             }
         }
     }
 
     func stopUpdates() {
         updateTask?.cancel()
+        updateTask = nil
     }
 
     deinit {
@@ -104,4 +140,3 @@ func getCPUModel() -> String {
     sysctlbyname("machdep.cpu.brand_string", &cpuModel, &size, nil, 0)
     return String(cString: cpuModel)
 }
-

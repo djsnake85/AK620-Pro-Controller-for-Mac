@@ -69,9 +69,6 @@
 				"deepcool-logo.png",
 				"DS-DIGI.TTF",
 				"DS-DIGIB.TTF",
-				"GPU Anim.gif",
-				"GPU-R.png",
-				GPU.png,
 			);
 			target = 42C685932D56989000AEC89A /* DeepCoolTests */;
 		};
@@ -83,9 +80,6 @@
 				"deepcool-logo.png",
 				"DS-DIGI.TTF",
 				"DS-DIGIB.TTF",
-				"GPU Anim.gif",
-				"GPU-R.png",
-				GPU.png,
 			);
 			target = 42C6859D2D56989000AEC89A /* DeepCoolUITests */;
 		};

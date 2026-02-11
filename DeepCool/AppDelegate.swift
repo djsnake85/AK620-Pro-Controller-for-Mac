@@ -223,4 +223,3 @@ class SettingsWindowController: NSWindowController {
         return NSNib.Name("SettingsWindow")
     }
 }
-
