@@ -1,4 +1,5 @@
 # DEEPCOOL AK620 DIGITAL PRO Controller for Mac
+# DEEPCOOL AK620 G2 DIGITAL NYX Controller for Mac
 
 Ce projet est une application macOS permettant de surveiller les statistiques de votre processeur (CPU), telles que la température, l'usage et la fréquence. Il fournit une interface graphique simple et un menu dans la barre d'état pour afficher ces informations en temps réel. 
 
