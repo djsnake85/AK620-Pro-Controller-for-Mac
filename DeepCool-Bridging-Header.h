@@ -1,1 +1,0 @@
-#include <IntelPowerGadget/PowerGadgetLib.h>
