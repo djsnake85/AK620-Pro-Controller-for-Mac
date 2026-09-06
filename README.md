@@ -9,7 +9,7 @@ L'application est également compatible avec l'affichage d'autres informations t
 
 ## Fonctionnalités
 
-- **Surveillance CPU** : Affiche la température, l'usage et la fréquence du CPU.
+- **Surveillance CPU** : Affiche la température,consommation énergétique , usage et la fréquence du CPU .
 - **Interface claire** : Fond noir avec texte blanc pour une meilleure lisibilité.
 - **Menu de la barre d'état** : Accès rapide aux informations système et possibilité d'afficher/masquer la fenêtre principale.
 - **Affichage de la fréquence de la RAM et d'autres informations système** (si implémenté).
@@ -19,7 +19,7 @@ L'application est également compatible avec l'affichage d'autres informations t
 
 ## Prérequis
 
-- macOS 10.15 ou version ultérieure
+- macOS 11 ou version ultérieure
 - Xcode 12 ou version ultérieure
 - Une machine Mac équipée d'un processeur Intel ou Apple Silicon
 
