@@ -13,6 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var cpuTempMenuItem: NSMenuItem?
     var cpuUsageMenuItem: NSMenuItem?
     var cpuFreqMenuItem: NSMenuItem?
+    var gpuTempMenuItem: NSMenuItem?
     var toggleWindowMenuItem: NSMenuItem?
 
     private var mainWindow: NSWindow?
@@ -36,6 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         cpuFreqMenuItem  = NSMenuItem(title: "Fréquence CPU : -- GHz", action: nil, keyEquivalent: "")
         cpuTempMenuItem  = NSMenuItem(title: "Temp CPU : --°C",        action: nil, keyEquivalent: "")
         cpuUsageMenuItem = NSMenuItem(title: "Usage CPU : --%",        action: nil, keyEquivalent: "")
+        gpuTempMenuItem  = NSMenuItem(title: "Temp GPU : --°C",        action: nil, keyEquivalent: "")
 
         let toggleItem = NSMenuItem(title: "Afficher la fenêtre", action: #selector(toggleWindow), keyEquivalent: "w")
         toggleItem.target = self
@@ -50,7 +52,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let quitMenuItem = NSMenuItem(title: "Quitter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         let menu = NSMenu()
-        [cpuFreqMenuItem, cpuTempMenuItem, cpuUsageMenuItem]
+        [cpuFreqMenuItem, cpuTempMenuItem, cpuUsageMenuItem, gpuTempMenuItem]
             .compactMap { $0 }
             .forEach { menu.addItem($0) }
         menu.addItem(.separator())
@@ -111,25 +113,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func setupBindings() {
         cancellables.removeAll()
         viewModel.$cpuTemperature
-            .combineLatest(viewModel.$cpuUsage, viewModel.$cpuFrequency)
+            .combineLatest(viewModel.$cpuUsage, viewModel.$cpuFrequency, viewModel.$gpuTemperature)
             .receive(on: RunLoop.main)
-            .sink { [weak self] temp, usage, freq in
-                self?.updateStatus(temp: temp, usage: usage, frequency: freq)
+            .sink { [weak self] temp, usage, freq, gpuTemp in
+                self?.updateStatus(temp: temp, usage: usage, frequency: freq, gpuTemp: gpuTemp)
             }
             .store(in: &cancellables)
     }
 
     // MARK: - Mise à jour statut
 
-    private func updateStatus(temp: Double, usage: Double, frequency: Double) {
-        let tempColor:  NSColor = temp  > 75 ? .systemRed : temp  >= 65 ? .systemOrange : .labelColor
-        let usageColor: NSColor = usage > 90 ? .systemRed : usage >= 70 ? .systemOrange : .labelColor
+    private func updateStatus(temp: Double, usage: Double, frequency: Double, gpuTemp: Double) {
+        let tempColor:    NSColor = temp    > 75 ? .systemRed : temp    >= 65 ? .systemOrange : .labelColor
+        let usageColor:   NSColor = usage   > 90 ? .systemRed : usage   >= 70 ? .systemOrange : .labelColor
+        let gpuTempColor: NSColor = gpuTemp > 75 ? .systemRed : gpuTemp >= 65 ? .systemOrange : .labelColor
 
         cpuFreqMenuItem?.title = String(format: "Fréquence CPU ⚡️ : %.2f GHz", frequency / 1000.0)
         cpuTempMenuItem?.attributedTitle  = attributedTextWithSymbol(
             symbol: "thermometer", text: String(format: "Température CPU %.0f°C", temp),  color: tempColor)
         cpuUsageMenuItem?.attributedTitle = attributedTextWithSymbol(
             symbol: "gauge",       text: String(format: "Usage CPU %.0f%%", usage), color: usageColor)
+        gpuTempMenuItem?.attributedTitle  = attributedTextWithSymbol(
+            symbol: "thermometer", text: String(format: "Température GPU %.0f°C", gpuTemp), color: gpuTempColor)
 
         guard let button = statusItem.button else { return }
         let statusString = NSMutableAttributedString()
@@ -149,6 +154,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             symbol: "gauge", text: String(format: "Usage CPU %.0f%%", usage), color: usageColor))
         statusString.append(NSAttributedString(
             string: String(format: " | Fréquence⚡️ %.2fGHz", frequency / 1000.0)))
+        statusString.append(NSAttributedString(string: " | "))
+        statusString.append(attributedTextWithSymbol(
+            symbol: "thermometer", text: String(format: "GPU %.0f°C", gpuTemp), color: gpuTempColor))
 
         button.attributedTitle = statusString
     }
@@ -158,7 +166,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func attributedTextWithSymbol(symbol: String, text: String, color: NSColor) -> NSAttributedString {
         let result = NSMutableAttributedString()
         if let icon = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) {
-            let tintedIcon = NSImage(size: NSSize(width: 14, height: 14), flipped: false) { rect in
+            let tintedIcon = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
                 icon.draw(in: rect)
                 color.set()
                 rect.fill(using: .sourceAtop)
