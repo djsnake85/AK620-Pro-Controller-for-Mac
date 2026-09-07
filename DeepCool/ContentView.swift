@@ -1,32 +1,285 @@
 import SwiftUI
 import AppKit
 
-fileprivate let deepTeal = Color(red: 0.031, green: 0.659, blue: 0.54)
+// ============================================================
+// Palette — inspirée du style "dashboard sombre en verre" de
+// l'app Sensei (Cindori) : fond quasi noir, cartes translucides
+// à bords fins, jauges circulaires en dégradé, chiffres en gras
+// arrondi (SF Rounded) plutôt qu'une police façon écran LCD.
+// ============================================================
+fileprivate let appBackgroundTop    = Color(red: 0.055, green: 0.06,  blue: 0.085)
+fileprivate let appBackgroundBottom = Color(red: 0.02,  green: 0.025, blue: 0.035)
+fileprivate let cardBackground      = Color(red: 0.10,  green: 0.105, blue: 0.13)
+fileprivate let cardBorder          = Color.white.opacity(0.07)
+fileprivate let trackColor          = Color.white.opacity(0.08)
+fileprivate let primaryText         = Color.white
+fileprivate let secondaryText       = Color.white.opacity(0.55)
+
+// Couleurs d'accent par métrique — chaque carte a sa propre identité,
+// comme dans Sensei où CPU/GPU/RAM/Disque/Réseau sont visuellement distincts.
+fileprivate let cpuAccent     = Color(red: 0.25, green: 0.72, blue: 1.0)   // cyan
+fileprivate let gpuAccent     = Color(red: 0.68, green: 0.45, blue: 1.0)   // violet
+fileprivate let ramAccent     = Color(red: 0.30, green: 0.86, blue: 0.62)  // vert menthe
+fileprivate let diskAccent    = Color(red: 1.0,  green: 0.72, blue: 0.30)  // ambre
+fileprivate let uploadAccent  = Color(red: 0.30, green: 0.86, blue: 0.62)  // vert menthe
+fileprivate let downloadAccent = Color(red: 1.0, green: 0.55, blue: 0.30)  // orange
+fileprivate let amdRed = Color(red: 0.93, green: 0.11, blue: 0.14)          // rouge AMD (ED1C24)
 
 fileprivate func temperatureColor(_ temp: Double) -> Color {
     if temp > 90 { return .red }
     else if temp >= 75 { return .orange }
-    else { return deepTeal }
+    else { return ramAccent }
+}
+
+// ---------- Constantes de mise en page ----------
+fileprivate enum Layout {
+    static let sectionSpacing: CGFloat = 16
+    static let cardCornerRadius: CGFloat = 20
 }
 
 // ---------- InfoCard ----------
+// Carte "verre" translucide sombre avec bordure fine et ombre portée douce.
 struct InfoCard<Content: View>: View {
     let content: Content
-    init(@ViewBuilder content: () -> Content) { self.content = content() }
+    var compact: Bool = false
+    init(compact: Bool = false, @ViewBuilder content: () -> Content) {
+        self.compact = compact
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous)
+                .fill(cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous)
+                        .stroke(cardBorder, lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.35), radius: 14, x: 0, y: 8)
+
+            content
+                .padding(compact ? 14 : 20)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// ---------- RingGauge ----------
+// Jauge circulaire pleine en dégradé, brique de base réutilisée par
+// CircularSemiGauge (CPU) et NeedleGauge (réseau) — remplace les anciens
+// styles semi-circulaire à aiguille par un rendu "ring" façon Sensei.
+struct RingGauge: View {
+    var value: Double // normalisé 0...1
+    var colors: [Color]
+    var lineWidth: CGFloat = 10
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.windowBackgroundColor))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color(NSColor.separatorColor).opacity(0.25), lineWidth: 1)
-                )
+            Circle()
+                .stroke(trackColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
 
-            content
-                .padding(18)
+            Circle()
+                .trim(from: 0, to: CGFloat(min(max(value, 0), 1)))
+                .stroke(
+                    AngularGradient(gradient: Gradient(colors: colors),
+                                     center: .center,
+                                     startAngle: .degrees(-90),
+                                     endAngle: .degrees(270)),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .animation(.spring(response: 0.6, dampingFraction: 0.85), value: value)
         }
-        .padding(.vertical, 4)
+    }
+}
+
+// ---------- CircularSemiGauge ----------
+// Nom conservé pour compatibilité (utilisé par CPUCard), mais rendu en
+// ring complet avec chiffre central en gras arrondi.
+struct CircularSemiGauge: View {
+    var value: Double
+    var accent: Color
+
+    var body: some View {
+        ZStack {
+            RingGauge(value: value, colors: [accent.opacity(0.55), accent], lineWidth: 10)
+
+            VStack(spacing: 2) {
+                Text("\(Int(min(max(value, 0), 1) * 100))%")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor(primaryText)
+                Text("CHARGE")
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundColor(secondaryText)
+                    .tracking(0.5)
+            }
+        }
+    }
+}
+
+// ---------- NeedleGauge ----------
+// Nom conservé pour compatibilité (utilisé par NetworkCard pour Upload/
+// Download), mais l'aiguille façon cadran auto a été remplacée par un
+// ring gauge avec chiffre + unité, cohérent avec le reste du dashboard.
+struct NeedleGauge: View {
+    var value: Double
+    var maxValue: Double
+    var accent: Color
+    var label: String
+    var labelOffset: CGFloat = 0
+
+    private var safeMax: Double { maxValue > 0 ? maxValue : 1 }
+    private var percent: Double { min(max(value / safeMax, 0), 1) }
+
+    var body: some View {
+        ZStack {
+            RingGauge(value: percent, colors: [accent.opacity(0.55), accent], lineWidth: 9)
+
+            VStack(spacing: 2) {
+                Text(String(format: "%.1f", value))
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(primaryText)
+                Text("MB/s")
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .foregroundColor(secondaryText)
+                Text(label.uppercased())
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundColor(accent)
+                    .tracking(0.5)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(format: "%@ : %.2f mégaoctets par seconde", label, value))
+    }
+}
+
+// ---------- UsageBarView ----------
+// Barre de progression en capsule dégradée sur piste sombre translucide.
+struct UsageBarView: View {
+    let used: Double
+    let total: Double
+    var accent: Color = ramAccent
+    var unit: String = "GB"
+
+    private var safeTotal: Double { total > 0 ? total : 1 }
+    private var percent: Double { min(max(used / safeTotal, 0), 1) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(trackColor)
+                    Capsule()
+                        .fill(LinearGradient(colors: [accent.opacity(0.6), accent],
+                                              startPoint: .leading, endPoint: .trailing))
+                        .frame(width: max(CGFloat(percent) * geo.size.width, 6))
+                        .animation(.easeInOut(duration: 0.4), value: percent)
+                }
+            }
+            .frame(height: 14)
+
+            HStack {
+                Text(String(format: "%.2f / %.2f \(unit)", used, total))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(secondaryText)
+                Spacer()
+                Text(String(format: "%d%%", Int(percent * 100)))
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundColor(accent)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            String(format: "Utilisation : %d pour cent, %.2f sur %.2f %@",
+                   Int(percent * 100), used, total, unit)
+        )
+    }
+}
+
+// ---------- StatRow ----------
+// Ligne "icône + label + valeur" réutilisée dans plusieurs cartes,
+// pour un alignement cohérent façon Sensei (icône teintée, label gris,
+// valeur en blanc/accent à droite).
+fileprivate struct StatRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    var accent: Color = secondaryText
+    var valueColor: Color = primaryText
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(accent)
+                .frame(width: 14)
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundColor(secondaryText)
+            Spacer()
+            Text(value)
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundColor(valueColor)
+        }
+    }
+}
+
+// ---------- CardHeader ----------
+fileprivate struct CardHeader: View {
+    let icon: String
+    let title: String
+    let accent: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ZStack {
+                Circle().fill(accent.opacity(0.15)).frame(width: 26, height: 26)
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(accent)
+            }
+            Text(title)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundColor(primaryText)
+        }
+    }
+}
+
+// ---------- SystemHeaderCard ----------
+// Bandeau tout en haut du dashboard : identité de la machine (modèle SMBIOS)
+// et version macOS installée — informations statiques, remontées au-dessus
+// de CPU/GPU pour identifier le système d'un coup d'œil.
+struct SystemHeaderCard: View {
+    let smbiosModel: String
+    let osVersion: String
+
+    var body: some View {
+        InfoCard(compact: true) {
+            HStack(spacing: 20) {
+                CardHeader(icon: "desktopcomputer", title: "Système", accent: secondaryText)
+
+                Spacer()
+
+                HStack(spacing: 6) {
+                    Image(systemName: "cube.box.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(secondaryText)
+                    Text(smbiosModel)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundColor(primaryText)
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "apple.logo")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(secondaryText)
+                    Text(osVersion)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundColor(primaryText)
+                }
+            }
+        }
+        .frame(minHeight: 20)
     }
 }
 
@@ -40,15 +293,23 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color(NSColor.windowBackgroundColor)
+            LinearGradient(colors: [appBackgroundTop, appBackgroundBottom],
+                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 18) {
-                    Spacer().frame(height: 12)
+                VStack(spacing: Layout.sectionSpacing) {
+                    Spacer().frame(height: 8)
+
+                    // --- Système (SMBIOS + macOS) ---
+                    SystemHeaderCard(
+                        smbiosModel: viewModel.smbiosModel,
+                        osVersion: viewModel.osVersion
+                    )
+                    .padding(.horizontal, 18)
 
                     // --- CPU & GPU ---
-                    HStack(spacing: 18) {
+                    HStack(alignment: .top, spacing: Layout.sectionSpacing) {
                         CPUCard(
                             cpuModel: viewModel.cpuModel,
                             cpuCoreCount: viewModel.cpuCoreCount,
@@ -61,14 +322,15 @@ struct ContentView: View {
 
                         GPUCardSimple(
                             gpuModel: viewModel.gpuModel,
-                            gpuVRAM: viewModel.gpuVRAM
+                            gpuVRAM: viewModel.gpuVRAM,
+                            gpuTemperature: viewModel.gpuTemperature
                         )
                         .frame(maxWidth: .infinity)
                     }
                     .padding(.horizontal, 18)
 
                     // --- RAM & Disk ---
-                    HStack(spacing: 18) {
+                    HStack(alignment: .top, spacing: Layout.sectionSpacing) {
                         MemoryCard(
                             ramUsed: viewModel.ramUsed,
                             ramTotal: viewModel.ramTotal,
@@ -85,21 +347,23 @@ struct ContentView: View {
                     .padding(.horizontal, 18)
 
                     // --- Network ---
-                    HStack(spacing: 18) {
+                    HStack(spacing: Layout.sectionSpacing) {
                         NetworkCard(
                             networkUploadSpeed: viewModel.networkUploadSpeed,
-                            networkDownloadSpeed: viewModel.networkDownloadSpeed
+                            networkDownloadSpeed: viewModel.networkDownloadSpeed,
+                            smbiosModel: viewModel.smbiosModel
                         )
                         .frame(maxWidth: .infinity)
                     }
                     .padding(.horizontal, 18)
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 24)
                 }
                 .padding(.top, 5)
             }
         }
         .onAppear { viewModel.startUpdates() }
         .onDisappear { viewModel.stopUpdates() }
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -115,52 +379,44 @@ struct CPUCard: View {
     var body: some View {
         let tempColor = temperatureColor(cpuTemp)
 
-        return InfoCard {
-            HStack(spacing: 20) {
-                CircularSemiGauge(value: cpuUsagePercent / 100.0, accent: deepTeal)
-                    .frame(width: 115, height: 115)
+        return InfoCard(compact: true) {
+            VStack(alignment: .leading, spacing: 12) {
+                CardHeader(icon: "cpu", title: "CPU", accent: cpuAccent)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("CPU:").font(.custom("DS-Digital", size: 28)).foregroundColor(.blue)
-                        Image("DC CPU").resizable().scaledToFit().frame(width: 128, height: 128)
+                HStack(spacing: 14) {
+                    CircularSemiGauge(value: cpuUsagePercent / 100.0, accent: cpuAccent)
+                        .frame(width: 78, height: 78)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Charge CPU : \(Int(cpuUsagePercent)) pour cent")
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(cpuModel)
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundColor(primaryText)
+                            .lineLimit(2)
+
+                        Text("\(cpuCoreCount) cœurs")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundColor(secondaryText)
                     }
+                }
 
-                    Text(cpuModel).font(.subheadline).foregroundColor(.secondary)
-                    Text("Nombre De Cœurs: \(cpuCoreCount)").font(.caption).foregroundColor(.secondary)
-                    Spacer().frame(height: 1)
+                Divider().background(cardBorder)
 
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            Text("Fréquence CPU:").font(.headline).foregroundColor(.secondary)
-                            Text(String(format: "%.2f GHz", cpuFrequencyMHz / 1000.0))
-                                .font(.custom("DS-Digital", size: 30))
-                                .foregroundColor(deepTeal)
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            Text("Consommation (TDP):").font(.headline).foregroundColor(.secondary)
-                            Text(String(format: "%.0f W", cpuTDP))
-                                .font(.custom("DS-Digital", size: 30))
-                                .foregroundColor(deepTeal)
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            Text("Température:").font(.headline).foregroundColor(.secondary)
-                            Image(systemName: "thermometer").font(.system(size: 20)).foregroundColor(tempColor)
-                            Text(String(format:"%.0f°C", cpuTemp))
-                                .font(.custom("DS-Digital", size: 32))
-                                .foregroundColor(tempColor)
-                        }
-                    }
+                VStack(spacing: 8) {
+                    StatRow(icon: "bolt.fill", label: "Fréquence",
+                            value: String(format: "%.2f GHz", cpuFrequencyMHz / 1000.0),
+                            accent: cpuAccent, valueColor: cpuAccent)
+                    StatRow(icon: "flame.fill", label: "TDP",
+                            value: String(format: "%.0f W", cpuTDP),
+                            accent: cpuAccent, valueColor: cpuAccent)
+                    StatRow(icon: "thermometer", label: "Température",
+                            value: String(format: "%.0f°C", cpuTemp),
+                            accent: tempColor, valueColor: tempColor)
                 }
             }
         }
-        .frame(minHeight: 50)
+        .frame(minHeight: 40)
     }
 }
 
@@ -168,38 +424,43 @@ struct CPUCard: View {
 struct GPUCardSimple: View {
     let gpuModel: String
     let gpuVRAM: Double
+    let gpuTemperature: Double
 
     var body: some View {
-        InfoCard {
-            HStack(alignment: .center, spacing: 5) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("GPU:")
-                        .font(.custom("DS-Digital", size: 26))
-                        .foregroundColor(.red)
+        let tempColor = temperatureColor(gpuTemperature)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(gpuModel)
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.primary)
-
-                        Text(String(format: "Mémoire Vidéo : %.1f GB", gpuVRAM))
-                            .font(.title3)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
-                    }
+        return InfoCard(compact: true) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    CardHeader(icon: "square.stack.3d.up.fill", title: "GPU", accent: gpuAccent)
+                    Spacer()
+                    Image("GPU R")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 80, height: 80)
+                        .opacity(0.9)
                 }
 
-                Spacer()
+                Text(gpuModel)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(primaryText)
+                    .lineLimit(2)
 
-                Image("GPU R")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 200, height: 200)
+                Divider().background(cardBorder)
+
+                VStack(spacing: 8) {
+                    StatRow(icon: "memorychip", label: "Mémoire vidéo",
+                            value: String(format: "%.1f GB", gpuVRAM),
+                            accent: amdRed, valueColor: amdRed)
+                    StatRow(icon: "thermometer", label: "Température",
+                            value: String(format: "%.0f°C", gpuTemperature),
+                            accent: tempColor, valueColor: tempColor)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(String(format: "Température GPU : %.0f degrés", gpuTemperature))
+                }
             }
-            .padding(.vertical, 12)
         }
-        .frame(minHeight: 50)
+        .frame(minHeight: 40)
     }
 }
 
@@ -211,37 +472,14 @@ struct MemoryCard: View {
 
     var body: some View {
         InfoCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Mémoire Utilisée").font(.headline)
+            VStack(alignment: .leading, spacing: 14) {
+                CardHeader(icon: "memorychip.fill", title: "Mémoire", accent: ramAccent)
 
-                let safeTotal = ramTotal > 0 ? ramTotal : 1
-                let usagePercent = min(max(ramUsed / safeTotal, 0), 1)
+                UsageBarView(used: ramUsed, total: ramTotal, accent: ramAccent)
 
-                // CORRECTION : GeometryReader pour une largeur dynamique
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(NSColor.windowBackgroundColor))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color(NSColor.separatorColor).opacity(0.3), lineWidth: 1)
-                            )
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(deepTeal)
-                            .frame(width: CGFloat(usagePercent) * geo.size.width, height: 16)
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                    }
-                }
-                .frame(height: 20)
-
-                HStack {
-                    Text(String(format: "%.2f / %.2f GB", ramUsed, ramTotal)).font(.caption2).foregroundColor(.secondary)
-                    Spacer()
-                    Text(String(format: "%d%%", Int(usagePercent * 100))).font(.caption2).foregroundColor(.secondary)
-                }
-
-                Text("Fréquence Mémoire").font(.headline).foregroundColor(.secondary)
-                Text(String(format: "%.0f MHz", ramFreqMHz)).font(.title2).foregroundColor(deepTeal)
+                StatRow(icon: "square.stack.3d.up", label: "RAM installée",
+                        value: String(format: "%.0f GB / %.0f MHz", ramTotal, ramFreqMHz),
+                        accent: ramAccent, valueColor: ramAccent)
             }
         }
         .frame(minHeight: 100)
@@ -255,34 +493,9 @@ struct DiskCard: View {
 
     var body: some View {
         InfoCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Disque").font(.headline)
-
-                let safeTotal = diskTotal > 0 ? diskTotal : 1
-                let usagePercent = min(max(diskUsed / safeTotal, 0), 1)
-
-                // CORRECTION : GeometryReader pour une largeur dynamique
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(NSColor.windowBackgroundColor))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color(NSColor.separatorColor).opacity(0.3), lineWidth: 1)
-                            )
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(deepTeal)
-                            .frame(width: CGFloat(usagePercent) * geo.size.width, height: 16)
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                    }
-                }
-                .frame(height: 20)
-
-                HStack {
-                    Text(String(format: "%.2f / %.2f GB", diskUsed, diskTotal)).font(.caption2).foregroundColor(.secondary)
-                    Spacer()
-                    Text(String(format: "%d%%", Int(usagePercent * 100))).font(.caption2).foregroundColor(.secondary)
-                }
+            VStack(alignment: .leading, spacing: 14) {
+                CardHeader(icon: "internaldrive.fill", title: "Disque", accent: diskAccent)
+                UsageBarView(used: diskUsed, total: diskTotal, accent: diskAccent)
             }
         }
         .frame(minHeight: 160)
@@ -293,175 +506,34 @@ struct DiskCard: View {
 struct NetworkCard: View {
     let networkUploadSpeed: Double
     let networkDownloadSpeed: Double
+    let smbiosModel: String
 
     var body: some View {
         InfoCard {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "network").font(.title2).foregroundColor(deepTeal)
-                    Text("Traffic Réseau").font(.headline)
-                }
+            VStack(alignment: .leading, spacing: 14) {
+                CardHeader(icon: "network", title: "Trafic Réseau", accent: uploadAccent)
 
                 HStack(spacing: 24) {
+                    Spacer()
                     NeedleGauge(
                         value: networkUploadSpeed / 1_048_576,
                         maxValue: 125,
-                        accent: deepTeal,
-                        label: "Upload",
-                        labelOffset: -25
+                        accent: uploadAccent,
+                        label: "Upload"
                     )
-                    .frame(width: 140, height: 120)
+                    .frame(width: 110, height: 110)
 
                     NeedleGauge(
                         value: networkDownloadSpeed / 1_048_576,
                         maxValue: 125,
-                        accent: .orange,
-                        label: "Download",
-                        labelOffset: -25
+                        accent: downloadAccent,
+                        label: "Download"
                     )
-                    .frame(width: 140, height: 120)
+                    .frame(width: 110, height: 110)
+                    Spacer()
                 }
             }
         }
         .frame(minHeight: 160)
     }
 }
-
-// ---------- NeedleGauge ----------
-struct NeedleGauge: View {
-    var value: Double
-    var maxValue: Double
-    var accent: Color
-    var label: String
-    var labelOffset: CGFloat = 0
-
-    @State private var animatedValue: Double = 0
-
-    private let totalAngle: Double = 270
-    private let startAngle: Double = -135
-
-    var body: some View {
-        GeometryReader { g in
-            let width = g.size.width
-            let height = g.size.height
-            let center = CGPoint(x: width/2, y: height/2)
-            let radius = min(width, height)/2.5
-            // CORRECTION : protection contre la division par zéro
-            let safeMax = maxValue > 0 ? maxValue : 1
-
-            ZStack {
-                Circle()
-                    .trim(from: 0.125, to: 0.875)
-                    .stroke(Color(NSColor.separatorColor).opacity(0.3),
-                            style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                    .rotationEffect(.degrees(180))
-
-                ForEach(0...10, id: \.self) { i in
-                    let angle = startAngle + (Double(i)/10 * totalAngle)
-                    let rad = angle * Double.pi / 180
-                    let inner = CGPoint(
-                        x: center.x + CGFloat(cos(rad)) * (radius - 6),
-                        y: center.y + CGFloat(sin(rad)) * (radius - 6)
-                    )
-                    let outer = CGPoint(
-                        x: center.x + CGFloat(cos(rad)) * radius,
-                        y: center.y + CGFloat(sin(rad)) * radius
-                    )
-                    Path { path in
-                        path.move(to: inner)
-                        path.addLine(to: outer)
-                    }
-                    .stroke(Color.secondary.opacity(0.5), lineWidth: 2)
-
-                    // CORRECTION : utilisation de safeMax
-                    let labelValue = Int(Double(i)/10 * safeMax)
-                    let textPos = CGPoint(
-                        x: center.x + CGFloat(cos(rad)) * (radius + 10),
-                        y: center.y + CGFloat(sin(rad)) * (radius + 10)
-                    )
-                    Text("\(labelValue)").font(.caption2).foregroundColor(.secondary)
-                        .position(textPos)
-                }
-
-                // CORRECTION : utilisation de safeMax
-                let needleAngle = startAngle + (animatedValue / safeMax * totalAngle)
-                let rad = needleAngle * Double.pi / 180
-                let tip = CGPoint(x: center.x + CGFloat(cos(rad)) * radius,
-                                  y: center.y + CGFloat(sin(rad)) * radius)
-
-                Path { path in
-                    let baseWidth: CGFloat = 8
-                    let anglePerp = atan2(tip.y - center.y, tip.x - center.x) + .pi/2
-                    let base1 = CGPoint(
-                        x: center.x + cos(anglePerp) * baseWidth,
-                        y: center.y + sin(anglePerp) * baseWidth
-                    )
-                    let base2 = CGPoint(
-                        x: center.x - cos(anglePerp) * baseWidth,
-                        y: center.y - sin(anglePerp) * baseWidth
-                    )
-                    path.move(to: base1)
-                    path.addLine(to: tip)
-                    path.addLine(to: base2)
-                    path.closeSubpath()
-                }
-                .fill(accent)
-
-                Circle()
-                    .fill(accent)
-                    .frame(width: 12, height: 12)
-
-                VStack {
-                    Spacer()
-                    Text(label).font(.caption).foregroundColor(.secondary)
-                        .offset(y: labelOffset)
-                    Text(String(format: "%.2f MB/s", animatedValue))
-                        .font(.caption2)
-                        .foregroundColor(.primary)
-                        .offset(y: labelOffset)
-                }
-            }
-            .onAppear { animatedValue = value }
-            // CORRECTION : compatibilité macOS 13 et antérieur
-            .onChange(of: value) { newValue in
-                withAnimation(.interpolatingSpring(stiffness: 140, damping: 18)) {
-                    animatedValue = newValue
-                }
-            }
-        }
-    }
-}
-
-// ---------- CircularSemiGauge ----------
-struct CircularSemiGauge: View {
-    var value: Double
-    var accent: Color
-
-    var body: some View {
-        GeometryReader { g in
-            ZStack {
-                Circle()
-                    .trim(from: 0.125, to: 0.875)
-                    .stroke(Color(NSColor.separatorColor).opacity(0.3),
-                            style: StrokeStyle(lineWidth: 16, lineCap: .round))
-                    .rotationEffect(.degrees(180))
-
-                Circle()
-                    .trim(from: 0.125,
-                          to: 0.125 + (0.75 * CGFloat(min(max(value, 0), 1))))
-                    .stroke(accent,
-                            style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                    .rotationEffect(.degrees(180))
-                    .animation(.spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0.3), value: value)
-
-                VStack {
-                    Text("Charge CPU").font(.caption).foregroundColor(.secondary)
-                    Text("\(Int(min(max(value, 0), 1) * 100))%")
-                        .font(.custom("DS-Digital", size: 34))
-                        .foregroundColor(deepTeal)
-                }
-            }
-        }
-    }
-}
-
