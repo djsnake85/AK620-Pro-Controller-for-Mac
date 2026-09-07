@@ -1,6 +1,67 @@
 import Foundation
 import IOKit
 import Darwin
+import AppKit
+
+// ---------- Autorisation powermetrics ----------
+// powermetrics exige les droits root. Plutôt que de redemander le mot de passe
+// à chaque appel (toutes les 2s — inutilisable), on affiche UNE SEULE FOIS le
+// dialogue d'authentification admin natif de macOS, qui installe une règle
+// sudoers NOPASSWD dédiée. Ensuite, tous les appels suivants (y compris après
+// redémarrage) passent silencieusement via `sudo -n`.
+enum PowermetricsAuthorization {
+
+    private static let sudoersPath = "/etc/sudoers.d/powermetrics"
+
+    /// Vérification rapide, silencieuse, sans prompt : la règle est-elle déjà active ?
+    /// IMPORTANT : on doit tester la commande EXACTE couverte par la règle
+    /// sudoers ("/usr/bin/powermetrics"), pas une commande arbitraire comme
+    /// "/usr/bin/true" — sudo refuserait sans mot de passe car cette dernière
+    /// n'a pas de règle NOPASSWD dédiée. "-h" affiche juste l'aide et sort
+    /// immédiatement, pour ne pas attendre un échantillon complet à chaque check.
+    static func isAuthorized() -> Bool {
+        let task = Process()
+        task.launchPath = "/usr/bin/sudo"
+        task.arguments  = ["-n", "/usr/bin/powermetrics", "-h"]
+        task.standardOutput = Pipe()
+        task.standardError  = Pipe()
+        do {
+            try task.run()
+            task.waitUntilExit()
+            return task.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+
+    /// Affiche le dialogue admin natif (mot de passe / Touch ID) UNE FOIS pour
+    /// installer la règle NOPASSWD. `completion` est appelé sur le thread principal.
+    static func requestAuthorization(completion: @escaping (Bool) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let user = NSUserName()
+            // CORRECTION : write + chmod dans le MÊME "do shell script" pour ne
+            // demander le mot de passe qu'une seule fois pour les deux commandes.
+            let rule = "\(user) ALL=(root) NOPASSWD: /usr/bin/powermetrics"
+            let shellCommand = "echo '\(rule)' > \(sudoersPath) && chmod 440 \(sudoersPath)"
+            let appleScriptSource = "do shell script \"\(shellCommand)\" with administrator privileges"
+
+            var errorDict: NSDictionary?
+            let script = NSAppleScript(source: appleScriptSource)
+            script?.executeAndReturnError(&errorDict)
+
+            if let errorDict {
+                #if DEBUG
+                print("[PowermetricsAuthorization] Échec ou annulation par l'utilisateur : \(errorDict)")
+                #endif
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+
+            let success = isAuthorized()
+            DispatchQueue.main.async { completion(success) }
+        }
+    }
+}
 
 class SystemMonitor: ObservableObject {
 
@@ -254,7 +315,7 @@ class SystemMonitor: ObservableObject {
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.readGPUUsageOnce()
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
         }
     }
@@ -262,14 +323,38 @@ class SystemMonitor: ObservableObject {
     private func readGPUUsageOnce() async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             let task = Process()
-            task.launchPath = "/usr/bin/env"
-            task.arguments  = ["powermetrics", "--samplers", "smc", "-n1"]
+            // CORRECTION : powermetrics exige les droits root. "-n" = non-interactif :
+            // échoue immédiatement (sans invite mot de passe) si la règle NOPASSWD
+            // n'est pas configurée dans /etc/sudoers.d — voir instructions.
+            task.launchPath = "/usr/bin/sudo"
+            task.arguments  = ["-n", "/usr/bin/powermetrics", "--samplers", "smc", "-n1"]
 
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            try? task.run()
+            let outPipe = Pipe()
+            let errPipe = Pipe()
+            task.standardOutput = outPipe
+            task.standardError  = errPipe
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            do {
+                try task.run()
+            } catch {
+                #if DEBUG
+                print("[SystemMonitor] Impossible de lancer powermetrics : \(error)")
+                #endif
+                continuation.resume()
+                return
+            }
+
+            let data = outPipe.fileHandleForReading.readDataToEndOfFile()
+            task.waitUntilExit()
+
+            #if DEBUG
+            if task.terminationStatus != 0 {
+                let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+                let errStr  = String(data: errData, encoding: .utf8) ?? "?"
+                print("[SystemMonitor] powermetrics a échoué (code \(task.terminationStatus)) : \(errStr)")
+            }
+            #endif
+
             guard let output = String(data: data, encoding: .utf8) else {
                 continuation.resume()
                 return
@@ -282,7 +367,18 @@ class SystemMonitor: ObservableObject {
                        .replacingOccurrences(of: "%", with: ""),
                    let percent = Double(percentStr) {
                     DispatchQueue.main.async { self.gpuUsage = percent }
-                    break
+                }
+
+                // AJOUT : sur Apple Silicon, le sampler "smc" de powermetrics
+                // expose la température GPU via cette ligne — contrairement aux
+                // clés SMC TG0D/TG0P qui ne concernent que les GPU discrets Intel/AMD.
+                if line.contains("GPU die temperature"),
+                   let tempStr = line.split(separator: ":").last?
+                       .trimmingCharacters(in: .whitespacesAndNewlines)
+                       .replacingOccurrences(of: "C", with: "")
+                       .trimmingCharacters(in: .whitespaces),
+                   let temp = Double(tempStr) {
+                    DispatchQueue.main.async { self.gpuTemperature = temp }
                 }
             }
             continuation.resume()
@@ -290,9 +386,13 @@ class SystemMonitor: ObservableObject {
     }
 
     // MARK: - GPU Temperature via SMCRadeonSensor
+    // NOTE : ne fonctionne que sur Mac Intel avec GPU discret AMD (clés TG0D/TG0P).
+    // Sur Apple Silicon, ces clés SMC n'existent pas — la température GPU est
+    // alors récupérée via readGPUUsageOnce() (powermetrics --samplers smc,
+    // ligne "GPU die temperature"), qui écrase gpuTemperature si elle trouve mieux.
 
     private func updateGPUTemperature() {
-        let smcKeys: [String] = ["TG0D", "TG0P", "TG0d", "TG0p"]
+        let smcKeys: [String] = ["TG0D", "TG0P", "TG0d", "TG0p", "TGDD"]
         for key in smcKeys {
             if let temp = readSMCTemperature(key: key), temp > 0, temp < 150 {
                 DispatchQueue.main.async { self.gpuTemperature = temp }
