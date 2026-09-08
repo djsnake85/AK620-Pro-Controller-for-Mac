@@ -3,22 +3,12 @@ import IOKit
 import Darwin
 import AppKit
 
-// ---------- Autorisation powermetrics ----------
-// powermetrics exige les droits root. Plutôt que de redemander le mot de passe
-// à chaque appel (toutes les 2s — inutilisable), on affiche UNE SEULE FOIS le
-// dialogue d'authentification admin natif de macOS, qui installe une règle
-// sudoers NOPASSWD dédiée. Ensuite, tous les appels suivants (y compris après
-// redémarrage) passent silencieusement via `sudo -n`.
+
 enum PowermetricsAuthorization {
 
     private static let sudoersPath = "/etc/sudoers.d/powermetrics"
 
-    /// Vérification rapide, silencieuse, sans prompt : la règle est-elle déjà active ?
-    /// IMPORTANT : on doit tester la commande EXACTE couverte par la règle
-    /// sudoers ("/usr/bin/powermetrics"), pas une commande arbitraire comme
-    /// "/usr/bin/true" — sudo refuserait sans mot de passe car cette dernière
-    /// n'a pas de règle NOPASSWD dédiée. "-h" affiche juste l'aide et sort
-    /// immédiatement, pour ne pas attendre un échantillon complet à chaque check.
+
     static func isAuthorized() -> Bool {
         let task = Process()
         task.launchPath = "/usr/bin/sudo"
@@ -34,13 +24,11 @@ enum PowermetricsAuthorization {
         }
     }
 
-    /// Affiche le dialogue admin natif (mot de passe / Touch ID) UNE FOIS pour
-    /// installer la règle NOPASSWD. `completion` est appelé sur le thread principal.
+    
     static func requestAuthorization(completion: @escaping (Bool) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             let user = NSUserName()
-            // CORRECTION : write + chmod dans le MÊME "do shell script" pour ne
-            // demander le mot de passe qu'une seule fois pour les deux commandes.
+
             let rule = "\(user) ALL=(root) NOPASSWD: /usr/bin/powermetrics"
             let shellCommand = "echo '\(rule)' > \(sudoersPath) && chmod 440 \(sudoersPath)"
             let appleScriptSource = "do shell script \"\(shellCommand)\" with administrator privileges"
@@ -90,7 +78,17 @@ class SystemMonitor: ObservableObject {
     // ---------- GPU ----------
     @Published var gpuVRAM: Double = 0.0
     @Published var gpuUsage: Double = 0.0
+   
+    @Published var gpuVRAMUsed: Double = 0.0
     @Published var gpuTemperature: Double = 0.0
+
+    // ---------- Network Info (IP / Routeur / Wi-Fi) ----------
+    @Published var ipAddress: String = "..."
+    @Published var routerAddress: String = "..."
+    @Published var wifiPhyMode: String = "..."
+    @Published var wifiChannel: String = "..."
+    @Published var wifiLinkSpeed: Double = 0.0   // Mb/s négociés (débit de liaison, pas le débit réel)
+    @Published var wifiSignalDBm: Int = 0         // Force du signal Wi-Fi reçu (RSSI, en dBm)
 
     // ---------- Private ----------
     private var previousSent: UInt64 = 0
@@ -98,18 +96,22 @@ class SystemMonitor: ObservableObject {
     private var previousNetworkCheck: Date = Date()
     private var pgMonitor: PowerGadgetMonitor?
 
-    // CORRECTION : powermetrics tourne en tâche de fond indépendante
-    // pour éviter d'en lancer plusieurs en parallèle à chaque cycle.
+    
     private var gpuUsageTask: Task<Void, Never>? = nil
+
+   
+    private var networkInfoTask: Task<Void, Never>? = nil
 
     init() {
         self.pgMonitor = PowerGadgetMonitor()
         self.cpuCoreCount = getCpuCoreCount()
         startGPUUsageLoop()
+        startNetworkInfoLoop()
     }
 
     deinit {
         gpuUsageTask?.cancel()
+        networkInfoTask?.cancel()
     }
 
     // MARK: - System Update
@@ -195,9 +197,7 @@ class SystemMonitor: ObservableObject {
         }
     }
 
-    // MARK: - Disk & Network
-    // CORRECTION : previousSent/Received protégés — tout lu/écrit sur le même
-    // thread (appelant), pas de DispatchQueue.main pour les variables privées.
+
 
     func updateDiskAndNetwork() {
         if let attrs = try? FileManager.default.attributesOfFileSystem(forPath: "/") {
@@ -246,8 +246,301 @@ class SystemMonitor: ObservableObject {
         previousNetworkCheck = now
     }
 
-    // MARK: - GPU Model + VRAM
-    // CORRECTION : un seul appel system_profiler pour les deux valeurs
+    // MARK: - Network Info (IP / Routeur / Wi-Fi)
+
+    private func startNetworkInfoLoop() {
+        networkInfoTask?.cancel()
+        networkInfoTask = Task.detached(priority: .background) { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                self.updateNetworkInfo()
+                
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+            }
+        }
+    }
+
+    private func updateNetworkInfo() {
+        let (interface, gateway) = defaultRouteInfo()
+        let ip = interface.flatMap { localIPv4Address(forInterface: $0) }
+
+        var phyMode = ""
+        var channel = ""
+        var linkSpeed: Double = 0
+        var signalDBm: Int = 0
+
+        if let interface, isWiFiInterface(interface) {
+            let wifi   = wifiCurrentNetworkInfo()
+            phyMode    = wifi.phyMode
+            channel    = wifi.channel
+            linkSpeed  = wifi.transmitRateMbps
+            signalDBm  = wifi.signalDBm ?? 0
+        }
+
+        DispatchQueue.main.async {
+            self.ipAddress     = ip ?? "Inconnue"
+            self.routerAddress = (gateway?.isEmpty == false) ? gateway! : "Inconnu"
+            self.wifiPhyMode   = phyMode.isEmpty ? "N/A (Ethernet)" : phyMode
+            self.wifiChannel   = channel.isEmpty ? "N/A" : channel
+            self.wifiLinkSpeed = linkSpeed
+            self.wifiSignalDBm = signalDBm
+        }
+    }
+
+    /// Interface de sortie ("en0", ...) et adresse de la passerelle par
+    /// défaut, via "route -n get default".
+    private func defaultRouteInfo() -> (interface: String?, gateway: String?) {
+        let task = Process()
+        task.launchPath = "/sbin/route"
+        task.arguments  = ["-n", "get", "default"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        do { try task.run() } catch { return (nil, nil) }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        guard let output = String(data: data, encoding: .utf8) else { return (nil, nil) }
+
+        var interface: String?
+        var gateway: String?
+        for line in output.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("interface:") {
+                interface = trimmed.replacingOccurrences(of: "interface:", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+            } else if trimmed.hasPrefix("gateway:") {
+                gateway = trimmed.replacingOccurrences(of: "gateway:", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return (interface, gateway)
+    }
+
+    
+    private func localIPv4Address(forInterface interfaceName: String) -> String? {
+        var addrs: UnsafeMutablePointer<ifaddrs>? = nil
+        guard getifaddrs(&addrs) == 0, let firstAddr = addrs else { return nil }
+        defer { freeifaddrs(addrs) }
+
+        var ptr: UnsafeMutablePointer<ifaddrs>? = firstAddr
+        while let current = ptr {
+            defer { ptr = current.pointee.ifa_next }
+            let name = String(cString: current.pointee.ifa_name)
+            guard name == interfaceName,
+                  let addr = current.pointee.ifa_addr,
+                  addr.pointee.sa_family == UInt8(AF_INET)
+            else { continue }
+
+            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            getnameinfo(addr, socklen_t(addr.pointee.sa_len),
+                        &host, socklen_t(host.count),
+                        nil, 0, NI_NUMERICHOST)
+            return String(cString: host)
+        }
+        return nil
+    }
+
+   
+    private func isWiFiInterface(_ interfaceName: String) -> Bool {
+        let task = Process()
+        task.launchPath = "/usr/sbin/networksetup"
+        task.arguments  = ["-listallhardwareports"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        do { try task.run() } catch { return false }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        guard let output = String(data: data, encoding: .utf8) else { return false }
+
+        let lines = output.components(separatedBy: "\n")
+        for (i, line) in lines.enumerated() where line.contains("Hardware Port: Wi-Fi") {
+            guard i + 1 < lines.count else { continue }
+            if lines[i + 1].contains("Device: \(interfaceName)") { return true }
+        }
+        return false
+    }
+
+    private struct WiFiCurrentNetwork {
+        var phyMode: String = ""
+        var channel: String = ""
+        var transmitRateMbps: Double = 0
+        var signalDBm: Int? = nil
+    }
+
+    
+    private func wifiCurrentNetworkInfo() -> WiFiCurrentNetwork {
+        let task = Process()
+        task.launchPath = "/usr/sbin/system_profiler"
+        task.arguments  = ["SPAirPortDataType"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        do { try task.run() } catch { return WiFiCurrentNetwork() }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        guard let output = String(data: data, encoding: .utf8) else { return WiFiCurrentNetwork() }
+
+        let lines = output.components(separatedBy: "\n")
+
+        
+        guard let headerIndex = lines.firstIndex(where: {
+            $0.trimmingCharacters(in: .whitespaces) == "Current Network Information:"
+        }) else {
+            return WiFiCurrentNetwork()
+        }
+
+        let headerIndent = lines[headerIndex].prefix(while: { $0 == " " }).count
+
+        var result = WiFiCurrentNetwork()
+        var i = headerIndex + 1
+        while i < lines.count {
+            let line = lines[i]
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if !trimmed.isEmpty {
+                let indent = line.prefix(while: { $0 == " " }).count
+                
+                if indent <= headerIndent { break }
+
+                if trimmed.hasPrefix("PHY Mode:") {
+                    result.phyMode = trimmed.replacingOccurrences(of: "PHY Mode:", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                } else if trimmed.hasPrefix("Channel:") {
+                    result.channel = trimmed.replacingOccurrences(of: "Channel:", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                } else if trimmed.hasPrefix("Transmit Rate:") {
+                    let value = trimmed.replacingOccurrences(of: "Transmit Rate:", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                    result.transmitRateMbps = Double(value) ?? 0
+                } else if trimmed.hasPrefix("Signal / Noise:") {
+                    // Format : "Signal / Noise: -50 dBm / -90 dBm" — on ne
+                    // garde que la première valeur (force du signal reçu).
+                    let value = trimmed.replacingOccurrences(of: "Signal / Noise:", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                    if let signalPart = value.components(separatedBy: "/").first {
+                        let digits = signalPart
+                            .replacingOccurrences(of: "dBm", with: "")
+                            .trimmingCharacters(in: .whitespaces)
+                        result.signalDBm = Int(digits)
+                    }
+                }
+            }
+            i += 1
+        }
+        return result
+    }
+
+
+
+    func fetchDiskModel() async -> String {
+        await withCheckedContinuation { continuation in
+            let wholeDiskIdentifier = physicalWholeDiskIdentifier()
+
+            if let identifier = wholeDiskIdentifier,
+               let model = nvmeModelName(forBSDName: identifier) {
+                continuation.resume(returning: model)
+                return
+            }
+
+        
+            let fallbackIdentifier = wholeDiskIdentifier ?? "/"
+            if let output = runDiskutilInfo(identifier: fallbackIdentifier) {
+                var model = output.components(separatedBy: "\n")
+                    .first { $0.contains("Device / Media Name:") }?
+                    .replacingOccurrences(of: "Device / Media Name:", with: "")
+                    .trimmingCharacters(in: .whitespaces) ?? ""
+                if model.hasSuffix(" Media") {
+                    model = String(model.dropLast(" Media".count))
+                }
+                if !model.isEmpty {
+                    continuation.resume(returning: model)
+                    return
+                }
+            }
+
+            continuation.resume(returning: "Inconnu")
+        }
+    }
+
+   
+    private func physicalWholeDiskIdentifier() -> String? {
+        guard let rootInfo = runDiskutilInfo(identifier: "/") else { return nil }
+
+        guard let physicalLine = rootInfo.components(separatedBy: "\n")
+            .first(where: { $0.contains("APFS Physical Store:") }) else {
+            return nil
+        }
+
+        let storeIdentifier = physicalLine
+            .replacingOccurrences(of: "APFS Physical Store:", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        guard !storeIdentifier.isEmpty else { return nil }
+
+        // "diskNsM" (partition) -> "diskN" (disque entier).
+        guard let range = storeIdentifier.range(of: #"^disk\d+"#, options: .regularExpression) else {
+            return storeIdentifier
+        }
+        return String(storeIdentifier[range])
+    }
+
+   
+    private func nvmeModelName(forBSDName bsdName: String) -> String? {
+        let task = Process()
+        task.launchPath = "/usr/sbin/system_profiler"
+        task.arguments  = ["SPNVMeDataType"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        do { try task.run() } catch { return nil }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        guard let output = String(data: data, encoding: .utf8) else { return nil }
+
+        let lines = output.components(separatedBy: "\n")
+        guard let bsdLineIndex = lines.firstIndex(where: {
+            $0.trimmingCharacters(in: .whitespaces) == "BSD Name: \(bsdName)"
+        }) else { return nil }
+
+        let bsdIndent = lines[bsdLineIndex].prefix(while: { $0 == " " }).count
+        var i = bsdLineIndex - 1
+        while i >= 0 {
+            let line = lines[i]
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let indent = line.prefix(while: { $0 == " " }).count
+            
+            if !trimmed.isEmpty, trimmed.hasSuffix(":"), indent < bsdIndent {
+                return String(trimmed.dropLast())
+            }
+            i -= 1
+        }
+        return nil
+    }
+
+  
+    private func runDiskutilInfo(identifier: String) -> String? {
+        let task = Process()
+        task.launchPath = "/usr/sbin/diskutil"
+        task.arguments  = ["info", identifier]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        do {
+            try task.run()
+        } catch {
+            return nil
+        }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        return String(data: data, encoding: .utf8)
+    }
+
+   
 
     func fetchGPUModelAndVRAM() async -> (model: String, vram: Double) {
         await withCheckedContinuation { continuation in
@@ -305,9 +598,7 @@ class SystemMonitor: ObservableObject {
         await fetchGPUModelAndVRAM().vram
     }
 
-    // MARK: - GPU Usage
-    // CORRECTION : boucle indépendante — powermetrics bloque ~1s,
-    // on ne le relance qu'une fois la lecture précédente terminée.
+
 
     private func startGPUUsageLoop() {
         gpuUsageTask?.cancel()
@@ -315,7 +606,9 @@ class SystemMonitor: ObservableObject {
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.readGPUUsageOnce()
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                self.readGPUVRAMUsage()
+                // Aligné sur le "-i 500" de powermetrics ci-dessus.
+                try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
     }
@@ -323,11 +616,10 @@ class SystemMonitor: ObservableObject {
     private func readGPUUsageOnce() async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             let task = Process()
-            // CORRECTION : powermetrics exige les droits root. "-n" = non-interactif :
-            // échoue immédiatement (sans invite mot de passe) si la règle NOPASSWD
-            // n'est pas configurée dans /etc/sudoers.d — voir instructions.
+ 
             task.launchPath = "/usr/bin/sudo"
-            task.arguments  = ["-n", "/usr/bin/powermetrics", "--samplers", "smc", "-n1"]
+        
+            task.arguments  = ["-n", "/usr/bin/powermetrics", "--samplers", "smc", "-i", "500", "-n1"]
 
             let outPipe = Pipe()
             let errPipe = Pipe()
@@ -382,6 +674,88 @@ class SystemMonitor: ObservableObject {
                 }
             }
             continuation.resume()
+        }
+    }
+
+
+
+    private func readGPUVRAMUsage() {
+        let task = Process()
+        task.launchPath = "/usr/sbin/ioreg"
+
+        task.arguments  = ["-a", "-l", "-w0"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        do { try task.run() } catch { return }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+
+        guard let root = try? PropertyListSerialization.propertyList(from: data, format: nil)
+        else { return }
+
+        var allStats: [[String: Any]] = []
+        collectPerformanceStatistics(in: root, into: &allStats)
+
+
+        let stats = allStats.first {
+            $0["inUseVidMemoryBytes"] != nil || $0["vramUsedBytes"] != nil || $0["vramFreeBytes"] != nil
+        } ?? allStats.first {
+            $0["GPU Core Utilization"] != nil || $0["Device Utilization %"] != nil || $0["GPU Activity(%)"] != nil
+        }
+
+        guard let stats else { return }
+
+        // VRAM utilisée + total
+        if let usedBytes = (stats["inUseVidMemoryBytes"] as? NSNumber)?.doubleValue
+            ?? (stats["vramUsedBytes"] as? NSNumber)?.doubleValue {
+            let usedGB = usedBytes / 1_073_741_824.0
+            DispatchQueue.main.async { self.gpuVRAMUsed = usedGB }
+
+            if let freeBytes = (stats["vramFreeBytes"] as? NSNumber)?.doubleValue {
+                let totalGB = (usedBytes + freeBytes) / 1_073_741_824.0
+                DispatchQueue.main.async { self.gpuVRAM = totalGB }
+            }
+        } else if let freeBytes = (stats["vramFreeBytes"] as? NSNumber)?.doubleValue {
+            // Repli : seule "vramFreeBytes" existe (pas de clé "used"
+            // directe) — on déduit l'utilisé depuis le total déjà connu.
+            let freeGB = freeBytes / 1_073_741_824.0
+            DispatchQueue.main.async {
+                let total = self.gpuVRAM > 0 ? self.gpuVRAM : freeGB
+                self.gpuVRAMUsed = max(total - freeGB, 0)
+            }
+        } else if let usedBytes = (stats["In use system memory"] as? NSNumber)?.doubleValue {
+            let usedGB = usedBytes / 1_073_741_824.0
+            DispatchQueue.main.async { self.gpuVRAMUsed = usedGB }
+        }
+
+        // Charge GPU
+        if let coreUse = (stats["GPU Core Utilization"] as? NSNumber)?.doubleValue {
+            let percent = min(max(coreUse / 1_000_000_000.0 * 100.0, 0), 100)
+            DispatchQueue.main.async { self.gpuUsage = percent }
+        } else if let devicePercent = (stats["Device Utilization %"] as? NSNumber)?.doubleValue {
+            DispatchQueue.main.async { self.gpuUsage = devicePercent }
+        } else if let activityPercent = (stats["GPU Activity(%)"] as? NSNumber)?.doubleValue {
+            DispatchQueue.main.async { self.gpuUsage = activityPercent }
+        }
+    }
+
+ 
+    private func collectPerformanceStatistics(in node: Any, into results: inout [[String: Any]]) {
+        if let dict = node as? [String: Any] {
+            if let stats = dict["PerformanceStatistics"] as? [String: Any] {
+                results.append(stats)
+            }
+            if let children = dict["IORegistryEntryChildren"] as? [Any] {
+                for child in children {
+                    collectPerformanceStatistics(in: child, into: &results)
+                }
+            }
+        } else if let array = node as? [Any] {
+            for item in array {
+                collectPerformanceStatistics(in: item, into: &results)
+            }
         }
     }
 
