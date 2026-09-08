@@ -4,10 +4,7 @@ import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
-    // CORRECTION : viewModel partagé avec ContentView — une seule instance
-    // L'ancienne version créait un ContentViewModel séparé dans AppDelegate
-    // et un autre dans ContentView, donc la barre de statut et le dashboard
-    // ne partageaient pas les mêmes données.
+
     var viewModel: ContentViewModel!
     var statusItem: NSStatusItem!
     var cpuTempMenuItem: NSMenuItem?
@@ -27,6 +24,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         createMainWindowIfNeeded()
         setupBindings()
         toggleWindowMenuItem?.title = "Afficher la fenêtre"
+
+
+        viewModel.startUpdates()
     }
 
     // MARK: - Barre de statut
@@ -114,7 +114,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         cancellables.removeAll()
         viewModel.$cpuTemperature
             .combineLatest(viewModel.$cpuUsage, viewModel.$cpuFrequency, viewModel.$gpuTemperature)
-            .receive(on: RunLoop.main)
+
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] temp, usage, freq, gpuTemp in
                 self?.updateStatus(temp: temp, usage: usage, frequency: freq, gpuTemp: gpuTemp)
             }
@@ -142,7 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let logo = NSImage(named: "deepcool-logo") {
             logo.isTemplate = true
             let attach = NSTextAttachment()
-            attach.image = resizeImage(image: logo, width: 16, height: 16)
+            attach.image = resizeImage(image: logo, width: 13, height: 13)
             statusString.append(NSAttributedString(attachment: attach))
             statusString.append(NSAttributedString(string: " "))
         }
@@ -166,7 +167,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func attributedTextWithSymbol(symbol: String, text: String, color: NSColor) -> NSAttributedString {
         let result = NSMutableAttributedString()
         if let icon = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) {
-            let tintedIcon = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
+            let tintedIcon = NSImage(size: NSSize(width: 14, height: 14), flipped: false) { rect in
                 icon.draw(in: rect)
                 color.set()
                 rect.fill(using: .sourceAtop)
