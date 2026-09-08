@@ -1,12 +1,7 @@
 import SwiftUI
 import AppKit
 
-// ============================================================
-// Palette — inspirée du style "dashboard sombre en verre" de
-// l'app Sensei (Cindori) : fond quasi noir, cartes translucides
-// à bords fins, jauges circulaires en dégradé, chiffres en gras
-// arrondi (SF Rounded) plutôt qu'une police façon écran LCD.
-// ============================================================
+
 fileprivate let appBackgroundTop    = Color(red: 0.055, green: 0.06,  blue: 0.085)
 fileprivate let appBackgroundBottom = Color(red: 0.02,  green: 0.025, blue: 0.035)
 fileprivate let cardBackground      = Color(red: 0.10,  green: 0.105, blue: 0.13)
@@ -15,8 +10,7 @@ fileprivate let trackColor          = Color.white.opacity(0.08)
 fileprivate let primaryText         = Color.white
 fileprivate let secondaryText       = Color.white.opacity(0.55)
 
-// Couleurs d'accent par métrique — chaque carte a sa propre identité,
-// comme dans Sensei où CPU/GPU/RAM/Disque/Réseau sont visuellement distincts.
+
 fileprivate let cpuAccent     = Color(red: 0.25, green: 0.72, blue: 1.0)   // cyan
 fileprivate let gpuAccent     = Color(red: 0.68, green: 0.45, blue: 1.0)   // violet
 fileprivate let ramAccent     = Color(red: 0.30, green: 0.86, blue: 0.62)  // vert menthe
@@ -64,97 +58,51 @@ struct InfoCard<Content: View>: View {
     }
 }
 
-// ---------- RingGauge ----------
-// Jauge circulaire pleine en dégradé, brique de base réutilisée par
-// CircularSemiGauge (CPU) et NeedleGauge (réseau) — remplace les anciens
-// styles semi-circulaire à aiguille par un rendu "ring" façon Sensei.
-struct RingGauge: View {
-    var value: Double // normalisé 0...1
-    var colors: [Color]
-    var lineWidth: CGFloat = 10
 
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(trackColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-
-            Circle()
-                .trim(from: 0, to: CGFloat(min(max(value, 0), 1)))
-                .stroke(
-                    AngularGradient(gradient: Gradient(colors: colors),
-                                     center: .center,
-                                     startAngle: .degrees(-90),
-                                     endAngle: .degrees(270)),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .animation(.spring(response: 0.6, dampingFraction: 0.85), value: value)
-        }
-    }
-}
-
-// ---------- CircularSemiGauge ----------
-// Nom conservé pour compatibilité (utilisé par CPUCard), mais rendu en
-// ring complet avec chiffre central en gras arrondi.
-struct CircularSemiGauge: View {
-    var value: Double
-    var accent: Color
-
-    var body: some View {
-        ZStack {
-            RingGauge(value: value, colors: [accent.opacity(0.55), accent], lineWidth: 10)
-
-            VStack(spacing: 2) {
-                Text("\(Int(min(max(value, 0), 1) * 100))%")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundColor(primaryText)
-                Text("CHARGE")
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
-                    .foregroundColor(secondaryText)
-                    .tracking(0.5)
-            }
-        }
-    }
-}
-
-// ---------- NeedleGauge ----------
-// Nom conservé pour compatibilité (utilisé par NetworkCard pour Upload/
-// Download), mais l'aiguille façon cadran auto a été remplacée par un
-// ring gauge avec chiffre + unité, cohérent avec le reste du dashboard.
-struct NeedleGauge: View {
+struct HorizontalGaugeBar: View {
     var value: Double
     var maxValue: Double
-    var accent: Color
+    var unit: String
     var label: String
-    var labelOffset: CGFloat = 0
+    var accent: Color
+    var valueFormat: String = "%.1f"
+    var barHeight: CGFloat = 10
+    var compact: Bool = false
 
     private var safeMax: Double { maxValue > 0 ? maxValue : 1 }
     private var percent: Double { min(max(value / safeMax, 0), 1) }
 
     var body: some View {
-        ZStack {
-            RingGauge(value: percent, colors: [accent.opacity(0.55), accent], lineWidth: 9)
-
-            VStack(spacing: 2) {
-                Text(String(format: "%.1f", value))
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(primaryText)
-                Text("MB/s")
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundColor(secondaryText)
+        VStack(alignment: .leading, spacing: compact ? 4 : 6) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(label.uppercased())
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .font(.system(size: compact ? 9 : 10, weight: .semibold, design: .rounded))
                     .foregroundColor(accent)
                     .tracking(0.5)
+                Spacer()
+                Text("\(String(format: valueFormat, value)) \(unit)")
+                    .font(.system(size: compact ? 12 : 14, weight: .bold, design: .rounded))
+                    .foregroundColor(primaryText)
             }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(trackColor)
+                    Capsule()
+                        .fill(LinearGradient(colors: [accent.opacity(0.6), accent],
+                                              startPoint: .leading, endPoint: .trailing))
+                        .frame(width: max(CGFloat(percent) * geo.size.width, 6))
+                        .animation(.easeInOut(duration: 0.35), value: percent)
+                }
+            }
+            .frame(height: barHeight)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(format: "%@ : %.2f mégaoctets par seconde", label, value))
+        .accessibilityLabel("\(label) : \(String(format: valueFormat, value)) \(unit)")
     }
 }
 
-// ---------- UsageBarView ----------
-// Barre de progression en capsule dégradée sur piste sombre translucide.
+
 struct UsageBarView: View {
     let used: Double
     let total: Double
@@ -196,10 +144,7 @@ struct UsageBarView: View {
     }
 }
 
-// ---------- StatRow ----------
-// Ligne "icône + label + valeur" réutilisée dans plusieurs cartes,
-// pour un alignement cohérent façon Sensei (icône teintée, label gris,
-// valeur en blanc/accent à droite).
+
 fileprivate struct StatRow: View {
     let icon: String
     let label: String
@@ -245,33 +190,56 @@ fileprivate struct CardHeader: View {
     }
 }
 
-// ---------- SystemHeaderCard ----------
-// Bandeau tout en haut du dashboard : identité de la machine (modèle SMBIOS)
-// et version macOS installée — informations statiques, remontées au-dessus
-// de CPU/GPU pour identifier le système d'un coup d'œil.
+
 struct SystemHeaderCard: View {
     let smbiosModel: String
     let osVersion: String
+    let ramTotal: Double
 
     var body: some View {
         InfoCard(compact: true) {
             HStack(spacing: 20) {
-                CardHeader(icon: "desktopcomputer", title: "Système", accent: secondaryText)
+                
+                HStack(spacing: 8) {
+                    ZStack {
+                        Circle().fill(secondaryText.opacity(0.15)).frame(width: 26, height: 26)
+                        Image("deepcool-logo")
+                            .resizable()
+                            .renderingMode(.template)
+                            .scaledToFit()
+                            .frame(width: 15, height: 15)
+                            .foregroundColor(secondaryText)
+                    }
+                    Text("Système")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundColor(primaryText)
+                }
 
                 Spacer()
 
+                // Logo Apple accolé au modèle SMBIOS (identifiant du Mac).
                 HStack(spacing: 6) {
-                    Image(systemName: "cube.box.fill")
-                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "apple.logo")
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(secondaryText)
                     Text(smbiosModel)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundColor(primaryText)
                 }
 
+                // Quantité de RAM installée.
                 HStack(spacing: 6) {
-                    Image(systemName: "apple.logo")
-                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "memorychip")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(secondaryText)
+                    Text(String(format: "%.0f GB RAM", ramTotal))
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundColor(primaryText)
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(secondaryText)
                     Text(osVersion)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -304,7 +272,8 @@ struct ContentView: View {
                     // --- Système (SMBIOS + macOS) ---
                     SystemHeaderCard(
                         smbiosModel: viewModel.smbiosModel,
-                        osVersion: viewModel.osVersion
+                        osVersion: viewModel.osVersion,
+                        ramTotal: viewModel.ramTotal
                     )
                     .padding(.horizontal, 18)
 
@@ -323,6 +292,8 @@ struct ContentView: View {
                         GPUCardSimple(
                             gpuModel: viewModel.gpuModel,
                             gpuVRAM: viewModel.gpuVRAM,
+                            gpuVRAMUsed: viewModel.gpuVRAMUsed,
+                            gpuUsage: viewModel.gpuUsage,
                             gpuTemperature: viewModel.gpuTemperature
                         )
                         .frame(maxWidth: .infinity)
@@ -340,7 +311,8 @@ struct ContentView: View {
 
                         DiskCard(
                             diskUsed: viewModel.diskUsed,
-                            diskTotal: viewModel.diskTotal
+                            diskTotal: viewModel.diskTotal,
+                            diskModel: viewModel.diskModel
                         )
                         .frame(maxWidth: .infinity)
                     }
@@ -351,7 +323,13 @@ struct ContentView: View {
                         NetworkCard(
                             networkUploadSpeed: viewModel.networkUploadSpeed,
                             networkDownloadSpeed: viewModel.networkDownloadSpeed,
-                            smbiosModel: viewModel.smbiosModel
+                            smbiosModel: viewModel.smbiosModel,
+                            ipAddress: viewModel.ipAddress,
+                            routerAddress: viewModel.routerAddress,
+                            wifiPhyMode: viewModel.wifiPhyMode,
+                            wifiChannel: viewModel.wifiChannel,
+                            wifiLinkSpeed: viewModel.wifiLinkSpeed,
+                            wifiSignalDBm: viewModel.wifiSignalDBm
                         )
                         .frame(maxWidth: .infinity)
                     }
@@ -361,8 +339,7 @@ struct ContentView: View {
                 .padding(.top, 5)
             }
         }
-        .onAppear { viewModel.startUpdates() }
-        .onDisappear { viewModel.stopUpdates() }
+      
         .preferredColorScheme(.dark)
     }
 }
@@ -383,23 +360,27 @@ struct CPUCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 CardHeader(icon: "cpu", title: "CPU", accent: cpuAccent)
 
-                HStack(spacing: 14) {
-                    CircularSemiGauge(value: cpuUsagePercent / 100.0, accent: cpuAccent)
-                        .frame(width: 78, height: 78)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("Charge CPU : \(Int(cpuUsagePercent)) pour cent")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(cpuModel)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(primaryText)
+                        .lineLimit(2)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(cpuModel)
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundColor(primaryText)
-                            .lineLimit(2)
-
-                        Text("\(cpuCoreCount) cœurs")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundColor(secondaryText)
-                    }
+                    Text("\(cpuCoreCount) cœurs")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(secondaryText)
                 }
+
+                HorizontalGaugeBar(
+                    value: cpuUsagePercent,
+                    maxValue: 100,
+                    unit: "%",
+                    label: "Charge",
+                    accent: cpuAccent,
+                    valueFormat: "%.0f"
+                )
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Charge CPU : \(Int(cpuUsagePercent)) pour cent")
 
                 Divider().background(cardBorder)
 
@@ -424,10 +405,13 @@ struct CPUCard: View {
 struct GPUCardSimple: View {
     let gpuModel: String
     let gpuVRAM: Double
+    let gpuVRAMUsed: Double
+    let gpuUsage: Double
     let gpuTemperature: Double
 
     var body: some View {
         let tempColor = temperatureColor(gpuTemperature)
+        let usageColor: Color = gpuUsage > 90 ? .red : gpuUsage >= 70 ? .orange : amdRed
 
         return InfoCard(compact: true) {
             VStack(alignment: .leading, spacing: 12) {
@@ -437,7 +421,7 @@ struct GPUCardSimple: View {
                     Image("GPU R")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 80, height: 80)
+                        .frame(width: 85, height: 85)
                         .opacity(0.9)
                 }
 
@@ -446,12 +430,31 @@ struct GPUCardSimple: View {
                     .foregroundColor(primaryText)
                     .lineLimit(2)
 
+                HorizontalGaugeBar(
+                    value: gpuUsage,
+                    maxValue: 100,
+                    unit: "%",
+                    label: "Charge",
+                    accent: usageColor,
+                    valueFormat: "%.0f"
+                )
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Charge GPU : \(Int(gpuUsage)) pour cent")
+
+                HorizontalGaugeBar(
+                    value: gpuVRAMUsed,
+                    maxValue: gpuVRAM,
+                    unit: String(format: "/ %.1f GB", gpuVRAM),
+                    label: "VRAM utilisée",
+                    accent: amdRed,
+                    valueFormat: "%.1f"
+                )
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(String(format: "VRAM utilisée : %.1f sur %.1f gigaoctets", gpuVRAMUsed, gpuVRAM))
+
                 Divider().background(cardBorder)
 
                 VStack(spacing: 8) {
-                    StatRow(icon: "memorychip", label: "Mémoire vidéo",
-                            value: String(format: "%.1f GB", gpuVRAM),
-                            accent: amdRed, valueColor: amdRed)
                     StatRow(icon: "thermometer", label: "Température",
                             value: String(format: "%.0f°C", gpuTemperature),
                             accent: tempColor, valueColor: tempColor)
@@ -490,11 +493,18 @@ struct MemoryCard: View {
 struct DiskCard: View {
     let diskUsed: Double
     let diskTotal: Double
+    let diskModel: String
 
     var body: some View {
         InfoCard {
             VStack(alignment: .leading, spacing: 14) {
                 CardHeader(icon: "internaldrive.fill", title: "Disque", accent: diskAccent)
+
+                Text(diskModel)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(secondaryText)
+                    .lineLimit(2)
+
                 UsageBarView(used: diskUsed, total: diskTotal, accent: diskAccent)
             }
         }
@@ -507,30 +517,64 @@ struct NetworkCard: View {
     let networkUploadSpeed: Double
     let networkDownloadSpeed: Double
     let smbiosModel: String
+    let ipAddress: String
+    let routerAddress: String
+    let wifiPhyMode: String
+    let wifiChannel: String
+    let wifiLinkSpeed: Double
+    let wifiSignalDBm: Int
 
+    private var uploadMbps: Double { networkUploadSpeed * 8 / 1_000_000 }
+    private var downloadMbps: Double { networkDownloadSpeed * 8 / 1_000_000 }
+
+ 
     var body: some View {
         InfoCard {
             VStack(alignment: .leading, spacing: 14) {
                 CardHeader(icon: "network", title: "Trafic Réseau", accent: uploadAccent)
 
-                HStack(spacing: 24) {
-                    Spacer()
-                    NeedleGauge(
-                        value: networkUploadSpeed / 1_048_576,
-                        maxValue: 125,
+                
+                VStack(spacing: 10) {
+                    HorizontalGaugeBar(
+                        value: uploadMbps,
+                        maxValue: 1000,
+                        unit: "Mb/s",
+                        label: "Upload",
                         accent: uploadAccent,
-                        label: "Upload"
+                        barHeight: 10,
+                        compact: true
                     )
-                    .frame(width: 110, height: 110)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(String(format: "Upload : %.1f mégabits par seconde", uploadMbps))
 
-                    NeedleGauge(
-                        value: networkDownloadSpeed / 1_048_576,
-                        maxValue: 125,
+                    HorizontalGaugeBar(
+                        value: downloadMbps,
+                        maxValue: 1000,
+                        unit: "Mb/s",
+                        label: "Download",
                         accent: downloadAccent,
-                        label: "Download"
+                        barHeight: 10,
+                        compact: true
                     )
-                    .frame(width: 110, height: 110)
-                    Spacer()
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(String(format: "Download : %.1f mégabits par seconde", downloadMbps))
+                }
+
+                Divider().background(cardBorder)
+
+                VStack(spacing: 8) {
+                    StatRow(icon: "network", label: "Adresse IP",
+                            value: ipAddress, accent: secondaryText)
+                    StatRow(icon: "point.3.connected.trianglepath.dotted", label: "Routeur",
+                            value: routerAddress, accent: secondaryText)
+
+                    StatRow(icon: "antenna.radiowaves.left.and.right", label: "Mode PHY",
+                            value: wifiPhyMode, accent: secondaryText)
+                    StatRow(icon: "number", label: "Canal",
+                            value: wifiChannel, accent: secondaryText)
+                    StatRow(icon: "speedometer", label: "Vitesse liaison",
+                            value: wifiLinkSpeed > 0 ? String(format: "%.0f Mb/s", wifiLinkSpeed) : "N/A",
+                            accent: secondaryText)
                 }
             }
         }
