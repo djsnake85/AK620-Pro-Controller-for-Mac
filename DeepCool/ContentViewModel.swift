@@ -20,6 +20,7 @@ class ContentViewModel: ObservableObject {
     @Published var gpuVRAM: Double = 0.0
     @Published var gpuUsage: Double = 0.0
     @Published var gpuTemperature: Double = 0.0
+    @Published var gpuVRAMUsed: Double = 0.0
     // Reflète l'état de la règle sudoers NOPASSWD pour powermetrics.
     // Utilisable côté UI pour afficher un bouton "Autoriser l'accès GPU" si false.
     @Published var powermetricsAuthorized: Bool = PowermetricsAuthorization.isAuthorized()
@@ -32,18 +33,26 @@ class ContentViewModel: ObservableObject {
     // ---------- Disk ----------
     @Published var diskUsed: Double = 0.0
     @Published var diskTotal: Double = 0.0
+    @Published var diskModel: String = "..."
 
     // ---------- Network ----------
     @Published var networkSent: Double = 0.0
     @Published var networkReceived: Double = 0.0
     @Published var networkUploadSpeed: Double = 0.0
     @Published var networkDownloadSpeed: Double = 0.0
+    @Published var ipAddress: String = "..."
+    @Published var routerAddress: String = "..."
+    @Published var wifiPhyMode: String = "..."
+    @Published var wifiChannel: String = "..."
+    @Published var wifiLinkSpeed: Double = 0.0
+    @Published var wifiSignalDBm: Int = 0
 
     // ---------- Managers ----------
     let deviceManager: DeepcoolDeviceManager   // internal pour AppDelegate
     let systemMonitor: SystemMonitor            // internal pour AppDelegate
     private var updateTask: Task<Void, Never>? = nil
-    private let updateInterval: UInt64 = 1_000_000_000
+   
+    private let updateInterval: UInt64 = 1_200_000_000
 
     init() {
         self.deviceManager = DeepcoolDeviceManager()
@@ -63,12 +72,19 @@ class ContentViewModel: ObservableObject {
             }
         }
 
+        // Modèle du disque de démarrage — un seul appel diskutil au lancement.
+        Task.detached(priority: .background) { [weak self] in
+            guard let self else { return }
+            let model = await self.systemMonitor.fetchDiskModel()
+            await MainActor.run {
+                self.diskModel = model
+            }
+        }
+
         systemMonitor.updateRAMFrequency()
     }
 
-    /// Affiche UNE FOIS le dialogue admin natif pour autoriser powermetrics
-    /// (donc l'utilisation/température GPU). Peut être relié à un bouton dans
-    /// l'UI, ou appelé automatiquement — voir startUpdates().
+
     func requestPowermetricsAccess() {
         PowermetricsAuthorization.requestAuthorization { [weak self] success in
             self?.powermetricsAuthorized = success
@@ -76,9 +92,7 @@ class ContentViewModel: ObservableObject {
     }
 
     func startUpdates() {
-        // Demande d'autorisation automatique, une seule fois, si pas déjà accordée.
-        // N'affiche le prompt admin qu'au tout premier lancement (ou tant que
-        // l'utilisateur ne l'a jamais acceptée) — pas de re-demande en boucle.
+       
         if !powermetricsAuthorized {
             requestPowermetricsAccess()
         }
@@ -108,9 +122,16 @@ class ContentViewModel: ObservableObject {
                     self.networkReceived      = monitor.networkReceived
                     self.networkUploadSpeed   = monitor.networkUploadSpeed
                     self.networkDownloadSpeed = monitor.networkDownloadSpeed
+                    self.ipAddress            = monitor.ipAddress
+                    self.routerAddress        = monitor.routerAddress
+                    self.wifiPhyMode          = monitor.wifiPhyMode
+                    self.wifiChannel          = monitor.wifiChannel
+                    self.wifiLinkSpeed        = monitor.wifiLinkSpeed
+                    self.wifiSignalDBm        = monitor.wifiSignalDBm
 
                     self.gpuUsage = monitor.gpuUsage
                     self.gpuTemperature = monitor.gpuTemperature
+                    self.gpuVRAMUsed = monitor.gpuVRAMUsed
                     // gpuVRAM : fixe, chargé au init — pas besoin de rafraîchir
                 }
 
