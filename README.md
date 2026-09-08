@@ -34,8 +34,6 @@ L'application est également compatible avec l'affichage d'autres informations t
    
 <img width="1024" height="1024" alt="Deepcool" src="https://github.com/user-attachments/assets/837739a2-c45d-4aff-87f9-f3926a95d331" />
 
+<img width="720" height="1033" alt="Capture d’écran 2026-09-08 à 09 50 04" src="https://github.com/user-attachments/assets/f7d46dbb-45e2-4ed7-b123-31ff31b1f9fd" />
 
-<img width="1363" height="1156" alt="Capture d’écran 2025-11-25 à 04 35 26" src="https://github.com/user-attachments/assets/bfa08da4-e06a-4652-985d-d48074c99c86" />
-
-<img width="1363" height="1156" alt="Capture d’écran 2025-11-25 à 04 36 07" src="https://github.com/user-attachments/assets/140201dd-b30c-4763-8d41-655d9fa5eef5" />
 
