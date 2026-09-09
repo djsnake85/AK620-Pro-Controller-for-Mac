@@ -343,7 +343,7 @@ struct ContentView: View {
                     Image("DC3-Cropped")
                         .resizable()
                         .scaledToFit()
-                        .frame(height: 20)
+                        .frame(height: 22)
                         .opacity(0.85)
                 }
                 .padding(.horizontal, 12)
@@ -443,7 +443,7 @@ struct GPUCardSimple: View {
                     Image("GPU R")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 50, height: 50)
+                        .frame(width: 80, height: 80)
                         .opacity(0.9)
                 }
 
