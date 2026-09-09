@@ -133,13 +133,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let usageColor:   NSColor = usage   > 90 ? .systemRed : usage   >= 70 ? .systemOrange : .labelColor
         let gpuTempColor: NSColor = gpuTemp > 75 ? .systemRed : gpuTemp >= 65 ? .systemOrange : .labelColor
 
-        cpuFreqMenuItem?.title = String(format: "Fréquence CPU ⚡️ : %.2f GHz", frequency / 1000.0)
+        cpuFreqMenuItem?.title = String(format: "Fréquence ⚡️: %.2f GHz", frequency / 1000.0)
         cpuTempMenuItem?.attributedTitle  = attributedTextWithSymbol(
-            symbol: "thermometer", text: String(format: "Température CPU %.0f°C", temp),  color: tempColor)
+            symbol: "thermometer", text: String(format: "Température CPU: %.0f°C", temp),  color: tempColor)
         cpuUsageMenuItem?.attributedTitle = attributedTextWithSymbol(
-            symbol: "gauge",       text: String(format: "Usage CPU %.0f%%", usage), color: usageColor)
+            symbol: "gauge",       text: String(format: "Usage: %.0f%%", usage), color: usageColor)
         gpuTempMenuItem?.attributedTitle  = attributedTextWithSymbol(
-            symbol: "thermometer", text: String(format: "Température GPU %.0f°C", gpuTemp), color: gpuTempColor)
+            symbol: "thermometer", text: String(format: "Température GPU: %.0f°C", gpuTemp), color: gpuTempColor)
 
         guard let button = statusItem.button else { return }
         let statusString = NSMutableAttributedString()
@@ -156,12 +156,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             symbol: "thermometer", text: String(format: "Température CPU %.0f°C", temp), color: tempColor))
         statusString.append(NSAttributedString(string: " | "))
         statusString.append(attributedTextWithSymbol(
-            symbol: "gauge", text: String(format: "Usage CPU %.0f%%", usage), color: usageColor))
+            symbol: "gauge", text: String(format: "Usage: %.0f%%", usage), color: usageColor))
         statusString.append(NSAttributedString(
-            string: String(format: " | Fréquence⚡️ %.2fGHz", frequency / 1000.0)))
+            string: String(format: " | Fréquence⚡️: %.2fGHz", frequency / 1000.0)))
         statusString.append(NSAttributedString(string: " | "))
         statusString.append(attributedTextWithSymbol(
-            symbol: "thermometer", text: String(format: "GPU %.0f°C", gpuTemp), color: gpuTempColor))
+            symbol: "thermometer", text: String(format: "Température GPU: %.0f°C", gpuTemp), color: gpuTempColor))
 
         button.attributedTitle = statusString
     }
