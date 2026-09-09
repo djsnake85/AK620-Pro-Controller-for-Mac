@@ -2,6 +2,7 @@ import Foundation
 import IOKit
 import Darwin
 import AppKit
+import CoreWLAN
 
 
 enum PowermetricsAuthorization {
@@ -58,6 +59,13 @@ class SystemMonitor: ObservableObject {
     @Published var cpuUsage: Double = 0.0
     @Published var cpuTemperature: Double = 0.0
     @Published var cpuTDP: Double = 0.0
+    @Published var cpuFanRPM: Double = 0.0
+    // CORRECTION : confirmé par l'utilisateur via test terminal — F0Ac
+    // est en réalité le ventilateur du BOÎTIER (chassis), F1Ac est le
+    // vrai ventilateur CPU (AK620). On n'affiche donc que F1Ac comme
+    // "ventilateur CPU" ; F0Ac est gardé à part (chassisFanRPM) si besoin
+    // de l'afficher ailleurs plus tard.
+    @Published var chassisFanRPM: Double = 0.0
     @Published var cpuCoreCount: Int = 0
 
     // ---------- RAM ----------
@@ -129,6 +137,7 @@ class SystemMonitor: ObservableObject {
         self.updateMemoryUsage()
         self.updateDiskAndNetwork()
         self.updateGPUTemperature()
+        self.updateCPUFanSpeed()
         // NOTE : GPU usage géré par startGPUUsageLoop(), pas ici
     }
 
@@ -254,8 +263,10 @@ class SystemMonitor: ObservableObject {
             while !Task.isCancelled {
                 guard let self else { return }
                 self.updateNetworkInfo()
-                
-                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                // CoreWLAN ne scanne pas (contrairement à l'ancienne
+                // méthode via system_profiler) : un intervalle court n'a
+                // plus d'impact sur le débit Wi-Fi.
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
         }
     }
@@ -270,7 +281,7 @@ class SystemMonitor: ObservableObject {
         var signalDBm: Int = 0
 
         if let interface, isWiFiInterface(interface) {
-            let wifi   = wifiCurrentNetworkInfo()
+            let wifi   = wifiCurrentNetworkInfo(interface: interface)
             phyMode    = wifi.phyMode
             channel    = wifi.channel
             linkSpeed  = wifi.transmitRateMbps
@@ -341,27 +352,19 @@ class SystemMonitor: ObservableObject {
         return nil
     }
 
-   
-    private func isWiFiInterface(_ interfaceName: String) -> Bool {
-        let task = Process()
-        task.launchPath = "/usr/sbin/networksetup"
-        task.arguments  = ["-listallhardwareports"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        do { try task.run() } catch { return false }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
-        guard let output = String(data: data, encoding: .utf8) else { return false }
-
-        let lines = output.components(separatedBy: "\n")
-        for (i, line) in lines.enumerated() where line.contains("Hardware Port: Wi-Fi") {
-            guard i + 1 < lines.count else { continue }
-            if lines[i + 1].contains("Device: \(interfaceName)") { return true }
-        }
-        return false
-    }
+    // MARK: - Wi-Fi via CoreWLAN
+    // CORRECTION MAJEURE : la version précédente utilisait
+    // "system_profiler SPAirPortDataType" pour lire PHY/canal/signal.
+    // Cette commande DÉCLENCHE UN SCAN WI-FI ACTIF (pour lister les
+    // réseaux voisins), ce qui force la carte à quitter brièvement son
+    // canal actuel — appelé toutes les 1-2s, ça dégradait réellement le
+    // débit/la latence pendant que l'app tournait (symptôme signalé :
+    // "la vitesse internet chute quand je lance l'application").
+    // CoreWLAN (CWInterface) lit en direct les stats de l'interface DÉJÀ
+    // CONNECTÉE (RSSI, PHY, canal, débit de liaison) sans jamais scanner
+    // les réseaux voisins — aucun impact sur le débit, même à haute
+    // fréquence. Ne nécessite pas d'autorisation de localisation tant
+    // qu'on ne lit pas le SSID/BSSID (non utilisés ici).
 
     private struct WiFiCurrentNetwork {
         var phyMode: String = ""
@@ -370,67 +373,54 @@ class SystemMonitor: ObservableObject {
         var signalDBm: Int? = nil
     }
 
-    
-    private func wifiCurrentNetworkInfo() -> WiFiCurrentNetwork {
-        let task = Process()
-        task.launchPath = "/usr/sbin/system_profiler"
-        task.arguments  = ["SPAirPortDataType"]
+    /// Vrai si l'interface donnée est gérée par CoreWLAN (donc Wi-Fi).
+    private func isWiFiInterface(_ interfaceName: String) -> Bool {
+        CWWiFiClient.shared().interface(withName: interfaceName) != nil
+    }
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        do { try task.run() } catch { return WiFiCurrentNetwork() }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
-        guard let output = String(data: data, encoding: .utf8) else { return WiFiCurrentNetwork() }
-
-        let lines = output.components(separatedBy: "\n")
-
-        
-        guard let headerIndex = lines.firstIndex(where: {
-            $0.trimmingCharacters(in: .whitespaces) == "Current Network Information:"
-        }) else {
+    /// Lit les infos de l'interface Wi-Fi connectée via CoreWLAN — aucun
+    /// scan déclenché, contrairement à system_profiler.
+    private func wifiCurrentNetworkInfo(interface interfaceName: String) -> WiFiCurrentNetwork {
+        guard let wifi = CWWiFiClient.shared().interface(withName: interfaceName) else {
             return WiFiCurrentNetwork()
         }
 
-        let headerIndent = lines[headerIndex].prefix(while: { $0 == " " }).count
-
         var result = WiFiCurrentNetwork()
-        var i = headerIndex + 1
-        while i < lines.count {
-            let line = lines[i]
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
 
-            if !trimmed.isEmpty {
-                let indent = line.prefix(while: { $0 == " " }).count
-                
-                if indent <= headerIndent { break }
+        let rssi = wifi.rssiValue()
+        if rssi != 0 { result.signalDBm = rssi }
 
-                if trimmed.hasPrefix("PHY Mode:") {
-                    result.phyMode = trimmed.replacingOccurrences(of: "PHY Mode:", with: "")
-                        .trimmingCharacters(in: .whitespaces)
-                } else if trimmed.hasPrefix("Channel:") {
-                    result.channel = trimmed.replacingOccurrences(of: "Channel:", with: "")
-                        .trimmingCharacters(in: .whitespaces)
-                } else if trimmed.hasPrefix("Transmit Rate:") {
-                    let value = trimmed.replacingOccurrences(of: "Transmit Rate:", with: "")
-                        .trimmingCharacters(in: .whitespaces)
-                    result.transmitRateMbps = Double(value) ?? 0
-                } else if trimmed.hasPrefix("Signal / Noise:") {
-                    // Format : "Signal / Noise: -50 dBm / -90 dBm" — on ne
-                    // garde que la première valeur (force du signal reçu).
-                    let value = trimmed.replacingOccurrences(of: "Signal / Noise:", with: "")
-                        .trimmingCharacters(in: .whitespaces)
-                    if let signalPart = value.components(separatedBy: "/").first {
-                        let digits = signalPart
-                            .replacingOccurrences(of: "dBm", with: "")
-                            .trimmingCharacters(in: .whitespaces)
-                        result.signalDBm = Int(digits)
-                    }
-                }
+        if let channel = wifi.wlanChannel() {
+            let band: String
+            switch channel.channelBand {
+            case .band2GHz: band = "2.4GHz"
+            case .band5GHz: band = "5GHz"
+            case .band6GHz: band = "6GHz"
+            default: band = ""
             }
-            i += 1
+            let width: String
+            switch channel.channelWidth {
+            case .width20MHz:  width = "20MHz"
+            case .width40MHz:  width = "40MHz"
+            case .width80MHz:  width = "80MHz"
+            case .width160MHz: width = "160MHz"
+            default: width = ""
+            }
+            result.channel = "\(channel.channelNumber) (\(band), \(width))"
         }
+
+        switch wifi.activePHYMode() {
+        case .mode11a:  result.phyMode = "802.11a"
+        case .mode11b:  result.phyMode = "802.11b"
+        case .mode11g:  result.phyMode = "802.11g"
+        case .mode11n:  result.phyMode = "802.11n"
+        case .mode11ac: result.phyMode = "802.11ac"
+        case .mode11ax: result.phyMode = "802.11ax"
+        default: break
+        }
+
+        result.transmitRateMbps = wifi.transmitRate()
+
         return result
     }
 
@@ -608,7 +598,7 @@ class SystemMonitor: ObservableObject {
                 await self.readGPUUsageOnce()
                 self.readGPUVRAMUsage()
                 // Aligné sur le "-i 500" de powermetrics ci-dessus.
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
             }
         }
     }
@@ -776,11 +766,61 @@ class SystemMonitor: ObservableObject {
     }
 
     private func readSMCTemperature(key: String) -> Double? {
-        // kIOMasterPortDefault : compatible macOS 10.14+ (kIOMainPortDefault = macOS 12+)
-        let service = IOServiceGetMatchingService(
-            kIOMasterPortDefault,
-            IOServiceMatching("AppleSMC")
-        )
+        guard let smc = readSMCKey(key: key) else { return nil }
+        let hi   = Double(smc.bytes.byte0)
+        let lo   = Double(smc.bytes.byte1) / 256.0
+        let temp = hi + lo
+        return temp > 0 ? temp : nil
+    }
+
+    // MARK: - CPU Fan Speed via SMC
+    // Clés SMC standard des ventilateurs Mac : "F0Ac" = vitesse RÉELLE du
+    // ventilateur 0, "F1Ac" = ventilateur 1. Exposées ici via SMCSuperIO
+    // (lecture des en-têtes ventilateurs de la carte mère par la puce
+    // Super I/O), présent dans la configuration EFI de cette machine.
+    // CONFIRMÉ par test terminal : F0Ac = ventilateur BOÎTIER, F1Ac =
+    // ventilateur CPU (AK620). Contrairement à la température (format
+    // "SP78"), la vitesse ventilateur utilise le format SMC "fpe2" :
+    // 16 bits = 14 bits entiers + 2 bits fractionnaires, donc
+    // RPM = valeur_brute / 4.
+
+    private func updateCPUFanSpeed() {
+        let chassis = readSMCFanRPM(key: "F0Ac")
+        let cpu     = readSMCFanRPM(key: "F1Ac")
+
+        DispatchQueue.main.async {
+            if let chassis, chassis > 0, chassis < 10_000 {
+                self.chassisFanRPM = chassis
+            }
+            if let cpu, cpu > 0, cpu < 10_000 {
+                self.cpuFanRPM = cpu
+            }
+        }
+    }
+
+    private func readSMCFanRPM(key: String) -> Double? {
+        guard let smc = readSMCKey(key: key) else { return nil }
+        let raw = (UInt16(smc.bytes.byte0) << 8) | UInt16(smc.bytes.byte1)
+        return Double(raw) / 4.0
+    }
+
+    /// Lecture SMC bas niveau, commune à la température et au ventilateur.
+    /// CORRECTION CRITIQUE (VirtualSMC) : la structure Swift native
+    /// SMCKeyData_t (définie plus bas) nécessite un champ "padding: UInt16"
+    /// explicite entre "keyInfo" et "result" pour matcher EXACTEMENT le
+    /// layout mémoire attendu par le driver SMC. Sans ce champ, la taille
+    /// de la structure ne correspond pas à ce qu'attend VirtualSMC, qui
+    /// rejette la requête avec kIOReturnBadArgument (-536870206) — plus
+    /// strict sur ce point que le SMC matériel réel, qui tolère l'écart.
+    private func readSMCKey(key: String) -> SMCKeyData_t? {
+        let masterPort: mach_port_t
+        if #available(macOS 12.0, *) {
+            masterPort = kIOMainPortDefault
+        } else {
+            masterPort = kIOMasterPortDefault
+        }
+
+        let service = IOServiceGetMatchingService(masterPort, IOServiceMatching("AppleSMC"))
         guard service != IO_OBJECT_NULL else { return nil }
         defer { IOObjectRelease(service) }
 
@@ -799,27 +839,20 @@ class SystemMonitor: ObservableObject {
                         | UInt32(keyBytes[1]) << 16
                         | UInt32(keyBytes[2]) << 8
                         | UInt32(keyBytes[3])
-        inputStruct.data8 = UInt8(SMC_CMD_READ_KEYINFO)
+        inputStruct.data8 = SMC_CMD_READ_KEYINFO
 
-        let ret1 = IOConnectCallStructMethod(
-            conn, UInt32(KERNEL_INDEX_SMC),
-            &inputStruct, inputSize, &outputStruct, &outputSize
-        )
-        guard ret1 == kIOReturnSuccess else { return nil }
+        guard IOConnectCallStructMethod(conn, UInt32(KERNEL_INDEX_SMC), &inputStruct, inputSize, &outputStruct, &outputSize) == kIOReturnSuccess else {
+            return nil
+        }
 
         inputStruct.keyInfo = outputStruct.keyInfo
-        inputStruct.data8   = UInt8(SMC_CMD_READ_BYTES)
+        inputStruct.data8   = SMC_CMD_READ_BYTES
 
-        let ret2 = IOConnectCallStructMethod(
-            conn, UInt32(KERNEL_INDEX_SMC),
-            &inputStruct, inputSize, &outputStruct, &outputSize
-        )
-        guard ret2 == kIOReturnSuccess else { return nil }
+        guard IOConnectCallStructMethod(conn, UInt32(KERNEL_INDEX_SMC), &inputStruct, inputSize, &outputStruct, &outputSize) == kIOReturnSuccess else {
+            return nil
+        }
 
-        let hi   = Double(outputStruct.bytes.0)
-        let lo   = Double(outputStruct.bytes.1) / 256.0
-        let temp = hi + lo
-        return temp > 0 ? temp : nil
+        return outputStruct
     }
 
     // MARK: - HUD Command
@@ -853,39 +886,52 @@ class SystemMonitor: ObservableObject {
 }
 
 // MARK: - Structures SMC bas niveau
+// CORRECTION CRITIQUE (VirtualSMC) : structure Swift native avec un champ
+// "padding: UInt16" EXPLICITE entre "keyInfo" et "result" — indispensable
+// pour que le layout mémoire calculé par Swift corresponde exactement à
+// celui attendu par le driver SMC (réel ou VirtualSMC). Sans ce champ,
+// VirtualSMC rejetait la requête avec kIOReturnBadArgument
+// (-536870206), plus strict sur ce point que le SMC matériel réel.
 
-private let KERNEL_INDEX_SMC     = 2
-private let SMC_CMD_READ_BYTES   = 5
-private let SMC_CMD_READ_KEYINFO = 9
-
-private struct SMCKeyData_t {
-    var key: UInt32 = 0
-    var vers       = SMCVersion()
-    var pLimitData = SMCPLimitData()
-    var keyInfo    = SMCKeyInfoData()
-    var result: UInt8  = 0
-    var status: UInt8  = 0
-    var data8:  UInt8  = 0
-    var data32: UInt32 = 0
-    var bytes: (
-        UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
-        UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
-        UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
-        UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8
-    ) = (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
-}
+private let KERNEL_INDEX_SMC: UInt32    = 2
+private let SMC_CMD_READ_BYTES: UInt8   = 5
+private let SMC_CMD_READ_KEYINFO: UInt8 = 9
 
 private struct SMCVersion {
-    var major: CUnsignedChar = 0; var minor: CUnsignedChar = 0
-    var build: CUnsignedChar = 0; var reserved: CUnsignedChar = 0
-    var release: CUnsignedShort = 0
+    var major: UInt8 = 0, minor: UInt8 = 0, build: UInt8 = 0
+    var reserved: UInt8 = 0, release: UInt16 = 0
 }
 
 private struct SMCPLimitData {
-    var version: UInt16 = 0; var length: UInt16 = 0
-    var cpuPLimit: UInt32 = 0; var gpuPLimit: UInt32 = 0; var memPLimit: UInt32 = 0
+    var version: UInt16 = 0, length: UInt16 = 0
+    var cpuPLimit: UInt32 = 0, gpuPLimit: UInt32 = 0, memPLimit: UInt32 = 0
 }
 
 private struct SMCKeyInfoData {
-    var dataSize: IOByteCount32 = 0; var dataType: UInt32 = 0; var dataAttributes: UInt8 = 0
+    var dataSize: UInt32 = 0
+    var dataType: UInt32 = 0
+    var dataAttributes: UInt8 = 0
+}
+
+private struct SMCBytes {
+    var b: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
+            UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
+            UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
+            UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) =
+        (0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0)
+    var byte0: UInt8 { b.0 }
+    var byte1: UInt8 { b.1 }
+}
+
+private struct SMCKeyData_t {
+    var key: UInt32 = 0
+    var vers = SMCVersion()
+    var pLimitData = SMCPLimitData()
+    var keyInfo = SMCKeyInfoData()
+    var padding: UInt16 = 0 // Alignement C indispensable
+    var result: UInt8 = 0
+    var status: UInt8 = 0
+    var data8: UInt8 = 0
+    var data32: UInt32 = 0
+    var bytes = SMCBytes()
 }
