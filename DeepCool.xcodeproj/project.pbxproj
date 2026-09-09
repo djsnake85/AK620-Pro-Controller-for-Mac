@@ -95,6 +95,7 @@
 		AA0000000000000000000015 /* DeepCoolUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepCoolUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		AA0000000000000000000016 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D611B716304D4E90001B815A /* DC CPU.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "DC CPU.png"; path = "Preview Content/Preview Assets.xcassets/DC CPU.imageset/DC CPU.png"; sourceTree = "<group>"; };
+		D66349793050DA0400A65162 /* DeepCoolRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DeepCoolRelease.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,8 +158,9 @@
 		42C685852D56988E00AEC89A /* DeepCool */ = {
 			isa = PBXGroup;
 			children = (
-				AA0000000000000000000001 /* AppDelegate.swift */,
+				D66349793050DA0400A65162 /* DeepCoolRelease.entitlements */,
 				AA0000000000000000000002 /* Assets.xcassets */,
+				AA0000000000000000000001 /* AppDelegate.swift */,
 				AA0000000000000000000003 /* ContentView.swift */,
 				AA0000000000000000000004 /* ContentViewModel.swift */,
 				D611B716304D4E90001B815A /* DC CPU.png */,
@@ -555,7 +557,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = DeepCool/DeepCool.entitlements;
+				CODE_SIGN_ENTITLEMENTS = DeepCool/DeepCoolRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
