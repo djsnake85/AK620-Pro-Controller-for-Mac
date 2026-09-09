@@ -8,6 +8,8 @@ class ContentViewModel: ObservableObject {
     @Published var cpuUsage: Double = 0.0
     @Published var cpuTemperature: Double = 0.0
     @Published var cpuTDP: Double = 0.0
+    @Published var cpuFanRPM: Double = 0.0
+    @Published var chassisFanRPM: Double = 0.0
     let cpuModel: String
     let cpuCoreCount: Int
     // Modèle SMBIOS de la machine (ex: "MacPro7,1"), statique — lu une seule fois.
@@ -52,7 +54,7 @@ class ContentViewModel: ObservableObject {
     let systemMonitor: SystemMonitor            // internal pour AppDelegate
     private var updateTask: Task<Void, Never>? = nil
    
-    private let updateInterval: UInt64 = 1_200_000_000
+    private let updateInterval: UInt64 = 1_000_000_000
 
     init() {
         self.deviceManager = DeepcoolDeviceManager()
@@ -110,6 +112,8 @@ class ContentViewModel: ObservableObject {
                     self.cpuUsage        = monitor.cpuUsage
                     self.cpuTemperature  = monitor.cpuTemperature
                     self.cpuTDP          = monitor.cpuTDP
+                    self.cpuFanRPM       = monitor.cpuFanRPM
+                    self.chassisFanRPM   = monitor.chassisFanRPM
 
                     self.ramUsed         = monitor.ramUsed
                     self.ramTotal        = monitor.ramTotal
