@@ -21,10 +21,18 @@ fileprivate let uploadAccent  = Color(red: 0.30, green: 0.86, blue: 0.62)  // ve
 fileprivate let downloadAccent = Color(red: 1.0, green: 0.55, blue: 0.30)  // orange
 fileprivate let amdRed = Color(red: 0.93, green: 0.11, blue: 0.14)          // rouge AMD (ED1C24)
 
+// Seuils température (CPU + GPU) : bleu < 50°C, orange 50-62°C, rouge >= 62°C
 fileprivate func temperatureColor(_ temp: Double) -> Color {
-    if temp > 90 { return .red }
-    else if temp >= 75 { return .orange }
-    else { return ramAccent }
+    if temp >= 62 { return .red }
+    else if temp >= 50 { return .orange }
+    else { return .blue }
+}
+
+// Seuils charge (CPU + GPU) : vert <= 50%, orange 50-85%, rouge 85-100%
+fileprivate func usageColor(_ usage: Double) -> Color {
+    if usage >= 85 { return .red }
+    else if usage > 50 { return .orange }
+    else { return .green }
 }
 
 // ---------- Constantes de mise en page réduites ----------
@@ -367,6 +375,7 @@ struct CPUCard: View {
 
     var body: some View {
         let tempColor = temperatureColor(cpuTemp)
+        let chargeColor = usageColor(cpuUsagePercent)
 
         return InfoCard(compact: true) {
             VStack(alignment: .leading, spacing: 8) {
@@ -388,7 +397,7 @@ struct CPUCard: View {
                     maxValue: 100,
                     unit: "%",
                     label: "Charge",
-                    accent: cpuAccent,
+                    accent: chargeColor,
                     valueFormat: "%.0f",
                     compact: true
                 )
@@ -433,7 +442,7 @@ struct GPUCardSimple: View {
 
     var body: some View {
         let tempColor = temperatureColor(gpuTemperature)
-        let usageColor: Color = gpuUsage > 90 ? .red : gpuUsage >= 70 ? .orange : amdRed
+        let chargeColor = usageColor(gpuUsage)
 
         return InfoCard(compact: true) {
             VStack(alignment: .leading, spacing: 8) {
@@ -457,7 +466,7 @@ struct GPUCardSimple: View {
                     maxValue: 100,
                     unit: "%",
                     label: "Charge",
-                    accent: usageColor,
+                    accent: chargeColor,
                     valueFormat: "%.0f",
                     compact: true
                 )
@@ -578,7 +587,7 @@ struct NetworkCard: View {
                         unit: "Mb/s",
                         label: "Upload",
                         accent: uploadAccent,
-                        barHeight: 5,
+                        barHeight: 7,
                         compact: true
                     )
                     .accessibilityElement(children: .ignore)
@@ -590,7 +599,7 @@ struct NetworkCard: View {
                         unit: "Mb/s",
                         label: "Download",
                         accent: downloadAccent,
-                        barHeight: 5,
+                        barHeight: 7,
                         compact: true
                     )
                     .accessibilityElement(children: .ignore)
