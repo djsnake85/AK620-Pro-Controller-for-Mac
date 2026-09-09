@@ -166,13 +166,17 @@ class SystemMonitor: ObservableObject {
         if result == KERN_SUCCESS {
             let pageSize   = vm_kernel_page_size
             let active     = Double(stats.active_count)          * Double(pageSize)
-            let inactive   = Double(stats.inactive_count)        * Double(pageSize)
             let wired      = Double(stats.wire_count)            * Double(pageSize)
             let compressed = Double(stats.compressor_page_count) * Double(pageSize)
-            let free       = Double(stats.free_count)            * Double(pageSize)
 
-            let used  = active + inactive + wired + compressed
-            let total = used + free
+            // CORRECTION : "inactive_count" correspond à des pages en cache
+            // immédiatement récupérables (fichiers mis en cache). Le Moniteur
+            // d'activité macOS ne les compte PAS dans "Mémoire utilisée" — il
+            // les affiche séparément sous "Fichiers en cache". Les inclure
+            // gonflait l'usage affiché de plusieurs Go par rapport au Moniteur
+            // d'activité. On reproduit donc son calcul : App + Wired + Compressé.
+            let used  = active + wired + compressed
+            let total = Double(ProcessInfo.processInfo.physicalMemory)
 
             DispatchQueue.main.async {
                 self.ramUsed  = used  / 1_073_741_824
