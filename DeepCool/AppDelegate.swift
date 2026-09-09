@@ -72,15 +72,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         // CORRECTION & BLOQUAGE REDIMENSIONNEMENT: Retrait de .resizable dans styleMask
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 535, height: 685),
+            contentRect: NSRect(x: 0, y: 0, width: 535, height: 690),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         
         // Verrouillage strict de la taille
-        window.minSize = NSSize(width: 535, height: 685)
-        window.maxSize = NSSize(width: 535, height: 685)
+        window.minSize = NSSize(width: 535, height: 690)
+        window.maxSize = NSSize(width: 535, height: 690)
         
         window.center()
         window.setFrameAutosaveName("Main Window")
@@ -129,17 +129,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - Mise à jour statut
 
     private func updateStatus(temp: Double, usage: Double, frequency: Double, gpuTemp: Double) {
-        let tempColor:    NSColor = temp    > 75 ? .systemRed : temp    >= 65 ? .systemOrange : .labelColor
-        let usageColor:   NSColor = usage   > 90 ? .systemRed : usage   >= 70 ? .systemOrange : .labelColor
-        let gpuTempColor: NSColor = gpuTemp > 75 ? .systemRed : gpuTemp >= 65 ? .systemOrange : .labelColor
+        // Température (CPU + GPU) : bleu < 50°C, orange 50-62°C, rouge >= 62°C
+        let tempColor:    NSColor = temp    >= 62 ? .systemRed : temp    >= 50 ? .systemOrange : .systemBlue
+        let gpuTempColor: NSColor = gpuTemp >= 62 ? .systemRed : gpuTemp >= 50 ? .systemOrange : .systemBlue
+        // Charge CPU : vert <= 50%, orange 50-85%, rouge 85-100%
+        let usageColor:   NSColor = usage   >= 85 ? .systemRed : usage   > 50 ? .systemOrange : .systemGreen
 
-        cpuFreqMenuItem?.title = String(format: "Fréquence ⚡️: %.2f GHz", frequency / 1000.0)
+        cpuFreqMenuItem?.title = String(format: "Fréquence⚡️: %.2f GHz", frequency / 1000.0)
         cpuTempMenuItem?.attributedTitle  = attributedTextWithSymbol(
-            symbol: "thermometer", text: String(format: "Température CPU: %.0f°C", temp),  color: tempColor)
+            symbol: "thermometer", text: String(format: "CPU: %.0f°C", temp),  color: tempColor)
         cpuUsageMenuItem?.attributedTitle = attributedTextWithSymbol(
             symbol: "gauge",       text: String(format: "Usage: %.0f%%", usage), color: usageColor)
         gpuTempMenuItem?.attributedTitle  = attributedTextWithSymbol(
-            symbol: "thermometer", text: String(format: "Température GPU: %.0f°C", gpuTemp), color: gpuTempColor)
+            symbol: "thermometer", text: String(format: "GPU: %.0f°C", gpuTemp), color: gpuTempColor)
 
         guard let button = statusItem.button else { return }
         let statusString = NSMutableAttributedString()
@@ -153,7 +155,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         statusString.append(attributedTextWithSymbol(
-            symbol: "thermometer", text: String(format: "Température CPU %.0f°C", temp), color: tempColor))
+            symbol: "thermometer", text: String(format: "CPU: %.0f°C", temp), color: tempColor))
         statusString.append(NSAttributedString(string: " | "))
         statusString.append(attributedTextWithSymbol(
             symbol: "gauge", text: String(format: "Usage: %.0f%%", usage), color: usageColor))
@@ -161,7 +163,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             string: String(format: " | Fréquence⚡️: %.2fGHz", frequency / 1000.0)))
         statusString.append(NSAttributedString(string: " | "))
         statusString.append(attributedTextWithSymbol(
-            symbol: "thermometer", text: String(format: "Température GPU: %.0f°C", gpuTemp), color: gpuTempColor))
+            symbol: "thermometer", text: String(format: "GPU: %.0f°C", gpuTemp), color: gpuTempColor))
 
         button.attributedTitle = statusString
     }
