@@ -4,7 +4,6 @@ import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
-
     var viewModel: ContentViewModel!
     var statusItem: NSStatusItem!
     var cpuTempMenuItem: NSMenuItem?
@@ -25,7 +24,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupBindings()
         toggleWindowMenuItem?.title = "Afficher la fenêtre"
 
-
         viewModel.startUpdates()
     }
 
@@ -44,6 +42,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         toggleWindowMenuItem = toggleItem
 
         let settingsMenuItem = NSMenuItem(title: "Paramètres", action: #selector(openSettingsWindow), keyEquivalent: "")
+        settingsMenuItem.target = self // CORRECTION: Ajout du target pour déclencher l'action
         if let icon = NSImage(systemSymbolName: "gear", accessibilityDescription: "Settings") {
             icon.isTemplate = true
             settingsMenuItem.image = icon
@@ -65,18 +64,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     // MARK: - Fenêtre principale
-    // CORRECTION : ContentView reçoit le viewModel partagé
 
     private func createMainWindowIfNeeded() {
         guard mainWindow == nil else { return }
 
         let contentView = ContentView(viewModel: viewModel)
+        
+        // CORRECTION & BLOQUAGE REDIMENSIONNEMENT: Retrait de .resizable dans styleMask
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 600),
-            styleMask: [.titled, .closable, .resizable],
+            contentRect: NSRect(x: 0, y: 0, width: 535, height: 685),
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
+        
+        // Verrouillage strict de la taille
+        window.minSize = NSSize(width: 535, height: 685)
+        window.maxSize = NSSize(width: 535, height: 685)
+        
         window.center()
         window.setFrameAutosaveName("Main Window")
         window.title = "DeepCool AK620 Digital Pro / AK620 G2 Digital NYX - By Snake"
@@ -114,7 +119,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         cancellables.removeAll()
         viewModel.$cpuTemperature
             .combineLatest(viewModel.$cpuUsage, viewModel.$cpuFrequency, viewModel.$gpuTemperature)
-
             .receive(on: DispatchQueue.main)
             .sink { [weak self] temp, usage, freq, gpuTemp in
                 self?.updateStatus(temp: temp, usage: usage, frequency: freq, gpuTemp: gpuTemp)
