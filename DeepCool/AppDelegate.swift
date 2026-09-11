@@ -1,6 +1,8 @@
 import Cocoa
 import SwiftUI
 import Combine
+import CoreServices
+import ServiceManagement
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
@@ -11,6 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var cpuFreqMenuItem: NSMenuItem?
     var gpuTempMenuItem: NSMenuItem?
     var toggleWindowMenuItem: NSMenuItem?
+    var launchAtLoginMenuItem: NSMenuItem?
 
     private var mainWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
@@ -31,10 +34,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func setupStatusBarMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-
-        cpuFreqMenuItem  = NSMenuItem(title: "Fréquence CPU : -- GHz", action: nil, keyEquivalent: "")
         cpuTempMenuItem  = NSMenuItem(title: "Temp CPU : --°C",        action: nil, keyEquivalent: "")
         cpuUsageMenuItem = NSMenuItem(title: "Usage CPU : --%",        action: nil, keyEquivalent: "")
+        cpuFreqMenuItem  = NSMenuItem(title: "Fréquence CPU : -- GHz", action: nil, keyEquivalent: "")
         gpuTempMenuItem  = NSMenuItem(title: "Temp GPU : --°C",        action: nil, keyEquivalent: "")
 
         let toggleItem = NSMenuItem(title: "Afficher la fenêtre", action: #selector(toggleWindow), keyEquivalent: "w")
@@ -48,6 +50,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             settingsMenuItem.image = icon
         }
 
+        let launchItem = NSMenuItem(title: "Démarrer avec macOS", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launchItem.target = self
+        launchItem.state = LoginItemHelper.isEnabled() ? .on : .off
+        launchAtLoginMenuItem = launchItem
+
         let quitMenuItem = NSMenuItem(title: "Quitter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         let menu = NSMenu()
@@ -57,6 +64,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(.separator())
         menu.addItem(toggleItem)
         menu.addItem(settingsMenuItem)
+        menu.addItem(launchItem)
         menu.addItem(.separator())
         menu.addItem(quitMenuItem)
 
@@ -72,15 +80,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         // CORRECTION & BLOQUAGE REDIMENSIONNEMENT: Retrait de .resizable dans styleMask
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 535, height: 690),
+            contentRect: NSRect(x: 0, y: 0, width: 535, height: 675),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         
         // Verrouillage strict de la taille
-        window.minSize = NSSize(width: 535, height: 690)
-        window.maxSize = NSSize(width: 535, height: 690)
+        window.minSize = NSSize(width: 535, height: 675)
+        window.maxSize = NSSize(width: 535, height: 675)
         
         window.center()
         window.setFrameAutosaveName("Main Window")
@@ -135,7 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Charge CPU : vert <= 50%, orange 50-85%, rouge 85-100%
         let usageColor:   NSColor = usage   >= 85 ? .systemRed : usage   > 50 ? .systemOrange : .systemGreen
 
-        cpuFreqMenuItem?.title = String(format: "Fréquence⚡️: %.2f GHz", frequency / 1000.0)
+        cpuFreqMenuItem?.title = String(format: "Fréquence ⚡️: %.2f GHz", frequency / 1000.0)
         cpuTempMenuItem?.attributedTitle  = attributedTextWithSymbol(
             symbol: "thermometer", text: String(format: "CPU: %.0f°C", temp),  color: tempColor)
         cpuUsageMenuItem?.attributedTitle = attributedTextWithSymbol(
@@ -195,6 +203,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // À implémenter
     }
 
+    // MARK: - Démarrage avec macOS
+
+    @objc private func toggleLaunchAtLogin() {
+        let newState = !LoginItemHelper.isEnabled()
+        LoginItemHelper.setEnabled(newState)
+        launchAtLoginMenuItem?.state = LoginItemHelper.isEnabled() ? .on : .off
+    }
+
     private func resizeImage(image: NSImage, width: CGFloat, height: CGFloat) -> NSImage {
         let destSize = NSMakeSize(width, height)
         let newImage = NSImage(size: destSize)
@@ -205,5 +221,97 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         newImage.unlockFocus()
         newImage.isTemplate = image.isTemplate
         return newImage
+    }
+}
+
+// MARK: - Démarrage au login (compatible macOS 11 Big Sur et versions ultérieures)
+//
+// Sur macOS 13+ (Ventura et plus), Apple a rendu LSSharedFileList
+// non fonctionnelle en pratique (le header SDK indique désormais
+// "No longer supported" — l'appel ne fait plus rien, silencieusement).
+// On bascule donc sur l'API moderne SMAppService à partir de 13.
+// En dessous (Big Sur 11, Monterey 12), SMAppService n'existe pas :
+// on utilise LSSharedFileList, dépréciée mais toujours fonctionnelle
+// sur ces versions. Xcode affichera des warnings jaunes sur cette
+// branche héritée : c'est attendu et sans impact.
+enum LoginItemHelper {
+
+    /// Retourne true si l'application est actuellement enregistrée comme élément de connexion.
+    static func isEnabled() -> Bool {
+        if #available(macOS 13.0, *) {
+            return SMAppService.mainApp.status == .enabled
+        } else {
+            return legacyIsEnabled()
+        }
+    }
+
+    /// Active ou désactive le lancement automatique au démarrage de session.
+    static func setEnabled(_ enabled: Bool) {
+        if #available(macOS 13.0, *) {
+            do {
+                if enabled {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                print("[LaunchAtLogin] Échec : \(error.localizedDescription)")
+            }
+        } else {
+            legacySetEnabled(enabled)
+        }
+    }
+
+    // MARK: - Branche héritée (Big Sur / Monterey, macOS < 13)
+    //
+    // Ces fonctions sont elles-mêmes marquées @available(deprecated) afin
+    // que Swift n'émette pas de warning pour l'usage de LSSharedFileList
+    // en leur sein : on sait qu'elle est dépréciée, c'est justement pourquoi
+    // cette branche n'est utilisée que sous macOS < 13.
+
+    @available(macOS, deprecated: 11.0, message: "Branche legacy volontaire pour Big Sur/Monterey (macOS < 13), voir LoginItemHelper")
+    private static func legacyIsEnabled() -> Bool {
+        guard let items = legacySnapshotItems() else { return false }
+        let appURL = Bundle.main.bundleURL
+        return items.contains { legacyResolvedURL(for: $0) == appURL }
+    }
+
+    @available(macOS, deprecated: 11.0, message: "Branche legacy volontaire pour Big Sur/Monterey (macOS < 13), voir LoginItemHelper")
+    private static func legacySetEnabled(_ enabled: Bool) {
+        guard let list = legacyLoginItemsList() else { return }
+        let appURL = Bundle.main.bundleURL
+
+        if enabled {
+            guard !legacyIsEnabled() else { return }
+            LSSharedFileListInsertItemURL(
+                list,
+                kLSSharedFileListItemBeforeFirst.takeRetainedValue(),
+                nil, nil,
+                appURL as CFURL,
+                nil, nil
+            )
+        } else {
+            guard let items = legacySnapshotItems() else { return }
+            for item in items where legacyResolvedURL(for: item) == appURL {
+                LSSharedFileListItemRemove(list, item)
+            }
+        }
+    }
+
+    @available(macOS, deprecated: 11.0, message: "Branche legacy volontaire pour Big Sur/Monterey (macOS < 13), voir LoginItemHelper")
+    private static func legacyLoginItemsList() -> LSSharedFileList? {
+        LSSharedFileListCreate(nil, kLSSharedFileListSessionLoginItems.takeRetainedValue(), nil)?
+            .takeRetainedValue()
+    }
+
+    @available(macOS, deprecated: 11.0, message: "Branche legacy volontaire pour Big Sur/Monterey (macOS < 13), voir LoginItemHelper")
+    private static func legacySnapshotItems() -> [LSSharedFileListItem]? {
+        guard let list = legacyLoginItemsList() else { return nil }
+        return LSSharedFileListCopySnapshot(list, nil)?.takeRetainedValue() as? [LSSharedFileListItem]
+    }
+
+    @available(macOS, deprecated: 11.0, message: "Branche legacy volontaire pour Big Sur/Monterey (macOS < 13), voir LoginItemHelper")
+    private static func legacyResolvedURL(for item: LSSharedFileListItem) -> URL? {
+        LSSharedFileListItemCopyResolvedURL(item, 0, nil)?.takeRetainedValue() as URL?
     }
 }
