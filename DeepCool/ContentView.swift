@@ -302,7 +302,9 @@ struct ContentView: View {
                                 gpuVRAM: viewModel.gpuVRAM,
                                 gpuVRAMUsed: viewModel.gpuVRAMUsed,
                                 gpuUsage: viewModel.gpuUsage,
-                                gpuTemperature: viewModel.gpuTemperature
+                                gpuTemperature: viewModel.gpuTemperature,
+                                gpuFanRPM: viewModel.gpuFanRPM,
+                                gpuFanPercent: viewModel.gpuFanPercent
                             )
                             .frame(maxWidth: .infinity)
                         }
@@ -439,6 +441,8 @@ struct GPUCardSimple: View {
     let gpuVRAMUsed: Double
     let gpuUsage: Double
     let gpuTemperature: Double
+    let gpuFanRPM: Double
+    let gpuFanPercent: Double
 
     var body: some View {
         let tempColor = temperatureColor(gpuTemperature)
@@ -446,15 +450,7 @@ struct GPUCardSimple: View {
 
         return InfoCard(compact: true) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    CardHeader(icon: "square.stack.3d.up.fill", title: "GPU", accent: gpuAccent)
-                    Spacer()
-                    Image("GPU R")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .opacity(0.9)
-                }
+                CardHeader(icon: "square.stack.3d.up.fill", title: "GPU", accent: gpuAccent)
 
                 Text(gpuModel)
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
@@ -493,6 +489,16 @@ struct GPUCardSimple: View {
                             accent: tempColor, valueColor: tempColor)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(String(format: "Température GPU : %.0f degrés", gpuTemperature))
+                    StatRow(icon: "wind", label: "Ventilateur GPU",
+                            value: gpuFanRPM > 0 ? String(format: "%.0f RPM", gpuFanRPM) : "N/A",
+                            accent: gpuAccent, valueColor: gpuAccent)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(String(format: "Ventilateur GPU : %.0f tours par minute", gpuFanRPM))
+                    StatRow(icon: "gauge.medium", label: "Vitesse ventilateur",
+                            value: gpuFanPercent > 0 ? String(format: "%.0f %%", gpuFanPercent) : "N/A",
+                            accent: gpuAccent, valueColor: gpuAccent)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(String(format: "Vitesse du ventilateur GPU : %.0f pour cent", gpuFanPercent))
                 }
             }
         }
@@ -587,7 +593,7 @@ struct NetworkCard: View {
                         unit: "Mb/s",
                         label: "Upload",
                         accent: uploadAccent,
-                        barHeight: 7,
+                        barHeight: 9,
                         compact: true
                     )
                     .accessibilityElement(children: .ignore)
@@ -599,7 +605,7 @@ struct NetworkCard: View {
                         unit: "Mb/s",
                         label: "Download",
                         accent: downloadAccent,
-                        barHeight: 7,
+                        barHeight: 9,
                         compact: true
                     )
                     .accessibilityElement(children: .ignore)
