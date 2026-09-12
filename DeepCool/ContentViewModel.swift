@@ -25,6 +25,8 @@ class ContentViewModel: ObservableObject {
     @Published var gpuVRAMUsed: Double = 0.0
     @Published var gpuFanRPM: Double = 0.0
     @Published var gpuFanPercent: Double = 0.0
+    @Published var gpuFrequency: Double = 0.0
+    @Published var gpuTDP: Double = 0.0
     // Reflète l'état de la règle sudoers NOPASSWD pour powermetrics.
     // Utilisable côté UI pour afficher un bouton "Autoriser l'accès GPU" si false.
     @Published var powermetricsAuthorized: Bool = PowermetricsAuthorization.isAuthorized()
@@ -140,6 +142,8 @@ class ContentViewModel: ObservableObject {
                     self.gpuVRAMUsed = monitor.gpuVRAMUsed
                     self.gpuFanRPM = monitor.gpuFanRPM
                     self.gpuFanPercent = monitor.gpuFanPercent
+                    self.gpuFrequency = monitor.gpuFrequency
+                    self.gpuTDP = monitor.gpuTDP
                     // gpuVRAM : fixe, chargé au init — pas besoin de rafraîchir
                 }
 
