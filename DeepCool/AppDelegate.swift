@@ -80,15 +80,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         // CORRECTION & BLOQUAGE REDIMENSIONNEMENT: Retrait de .resizable dans styleMask
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 535, height: 675),
+            contentRect: NSRect(x: 0, y: 0, width: 535, height: 690),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         
         // Verrouillage strict de la taille
-        window.minSize = NSSize(width: 535, height: 675)
-        window.maxSize = NSSize(width: 535, height: 675)
+        window.minSize = NSSize(width: 535, height: 690)
+        window.maxSize = NSSize(width: 535, height: 690)
         
         window.center()
         window.setFrameAutosaveName("Main Window")
