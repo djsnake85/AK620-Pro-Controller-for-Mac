@@ -304,7 +304,9 @@ struct ContentView: View {
                                 gpuUsage: viewModel.gpuUsage,
                                 gpuTemperature: viewModel.gpuTemperature,
                                 gpuFanRPM: viewModel.gpuFanRPM,
-                                gpuFanPercent: viewModel.gpuFanPercent
+                                gpuFanPercent: viewModel.gpuFanPercent,
+                                gpuFrequency: viewModel.gpuFrequency,
+                                gpuTDP: viewModel.gpuTDP
                             )
                             .frame(maxWidth: .infinity)
                         }
@@ -443,6 +445,8 @@ struct GPUCardSimple: View {
     let gpuTemperature: Double
     let gpuFanRPM: Double
     let gpuFanPercent: Double
+    let gpuFrequency: Double
+    let gpuTDP: Double
 
     var body: some View {
         let tempColor = temperatureColor(gpuTemperature)
@@ -484,6 +488,16 @@ struct GPUCardSimple: View {
                 Divider().background(cardBorder)
 
                 VStack(spacing: 5) {
+                    StatRow(icon: "waveform.path.ecg", label: "Fréquence GPU",
+                            value: gpuFrequency > 0 ? String(format: "%.0f MHz", gpuFrequency) : "N/A",
+                            accent: gpuAccent, valueColor: gpuAccent)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(String(format: "Fréquence GPU : %.0f mégahertz", gpuFrequency))
+                    StatRow(icon: "bolt.fill", label: "TDP GPU",
+                            value: gpuTDP > 0 ? String(format: "%.0f W", gpuTDP) : "N/A",
+                            accent: gpuAccent, valueColor: gpuAccent)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(String(format: "TDP GPU : %.0f watts", gpuTDP))
                     StatRow(icon: "thermometer", label: "Température",
                             value: String(format: "%.0f°C", gpuTemperature),
                             accent: tempColor, valueColor: tempColor)
