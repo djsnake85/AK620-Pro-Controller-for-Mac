@@ -89,6 +89,8 @@ class SystemMonitor: ObservableObject {
    
     @Published var gpuVRAMUsed: Double = 0.0
     @Published var gpuTemperature: Double = 0.0
+    @Published var gpuFanRPM: Double = 0.0
+    @Published var gpuFanPercent: Double = 0.0
 
     // ---------- Network Info (IP / Routeur / Wi-Fi) ----------
     @Published var ipAddress: String = "..."
@@ -732,6 +734,18 @@ class SystemMonitor: ObservableObject {
             DispatchQueue.main.async { self.gpuUsage = devicePercent }
         } else if let activityPercent = (stats["GPU Activity(%)"] as? NSNumber)?.doubleValue {
             DispatchQueue.main.async { self.gpuUsage = activityPercent }
+        }
+
+        // Ventilateur GPU — exposé directement par le driver AMD dans ce
+        // même dictionnaire "PerformanceStatistics" (confirmé par test :
+        // "Fan Speed(RPM)" présent, contrairement aux clés SMC F*Ac qui ne
+        // couvrent que les ventilateurs pilotés par le Super I/O de la
+        // carte mère). Pas besoin de SMCRadeonSensors ni de SMC ici.
+        if let fanRPM = (stats["Fan Speed(RPM)"] as? NSNumber)?.doubleValue {
+            DispatchQueue.main.async { self.gpuFanRPM = fanRPM }
+        }
+        if let fanPercent = (stats["Fan Speed(%)"] as? NSNumber)?.doubleValue {
+            DispatchQueue.main.async { self.gpuFanPercent = fanPercent }
         }
     }
 
