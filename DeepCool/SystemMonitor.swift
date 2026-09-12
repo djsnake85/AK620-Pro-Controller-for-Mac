@@ -91,6 +91,8 @@ class SystemMonitor: ObservableObject {
     @Published var gpuTemperature: Double = 0.0
     @Published var gpuFanRPM: Double = 0.0
     @Published var gpuFanPercent: Double = 0.0
+    @Published var gpuFrequency: Double = 0.0
+    @Published var gpuTDP: Double = 0.0
 
     // ---------- Network Info (IP / Routeur / Wi-Fi) ----------
     @Published var ipAddress: String = "..."
@@ -747,9 +749,18 @@ class SystemMonitor: ObservableObject {
         if let fanPercent = (stats["Fan Speed(%)"] as? NSNumber)?.doubleValue {
             DispatchQueue.main.async { self.gpuFanPercent = fanPercent }
         }
+
+        // Fréquence GPU — même dictionnaire, exposée par le driver AMD.
+        if let coreClock = (stats["Core Clock(MHz)"] as? NSNumber)?.doubleValue {
+            DispatchQueue.main.async { self.gpuFrequency = coreClock }
+        }
+
+        // TDP GPU — même dictionnaire, exposé par le driver AMD.
+        if let totalPower = (stats["Total Power(W)"] as? NSNumber)?.doubleValue {
+            DispatchQueue.main.async { self.gpuTDP = totalPower }
+        }
     }
 
- 
     private func collectPerformanceStatistics(in node: Any, into results: inout [[String: Any]]) {
         if let dict = node as? [String: Any] {
             if let stats = dict["PerformanceStatistics"] as? [String: Any] {
