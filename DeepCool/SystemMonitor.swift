@@ -106,7 +106,12 @@ class SystemMonitor: ObservableObject {
     private var previousSent: UInt64 = 0
     private var previousReceived: UInt64 = 0
     private var previousNetworkCheck: Date = Date()
-    private var pgMonitor: PowerGadgetMonitor?
+
+    // Pour le calcul d'usage CPU natif (host_processor_info), en remplacement
+    // de PowerGadgetMonitor.getIAUtilization(). On garde les compteurs du tick
+    // précédent pour calculer un delta (usage instantané = deltas / temps).
+    private var previousCPUTicks: (user: UInt32, system: UInt32, idle: UInt32, nice: UInt32)?
+
 
     
     private var gpuUsageTask: Task<Void, Never>? = nil
@@ -115,7 +120,6 @@ class SystemMonitor: ObservableObject {
     private var networkInfoTask: Task<Void, Never>? = nil
 
     init() {
-        self.pgMonitor = PowerGadgetMonitor()
         self.cpuCoreCount = getCpuCoreCount()
         startGPUUsageLoop()
         startNetworkInfoLoop()
@@ -129,14 +133,21 @@ class SystemMonitor: ObservableObject {
     // MARK: - System Update
 
     func updateSystemMetrics() {
-        guard let monitor = self.pgMonitor else { return }
-
-        if monitor.updateSamples() {
-            if let freq  = monitor.getRequestFrequency()    { self.cpuFrequency    = freq  }
-            if let power = monitor.getPackagePower()        { self.cpuTDP          = power }
-            if let temp  = monitor.getPackageTemperature()  { self.cpuTemperature  = temp  }
-            if let util  = monitor.getIAUtilization()       { self.cpuUsage        = util  }
+        // Température et TDP package — lus via SMC (VirtualSMC + SMCProcessor),
+        // confirmés par sonde manuelle sur cette machine :
+        //   TC0D (sp78) = température package, PCPT (sp96) = puissance package totale.
+        if let temp = readSMCTemperature(key: "TC0D") {
+            self.cpuTemperature = temp
         }
+        if let power = readSMCPower(key: "PCPT") {
+            self.cpuTDP = power
+        }
+        if let usage = readCPUUsageNative() {
+            self.cpuUsage = usage
+        }
+        // NOTE : cpuFrequency est mis à jour par readGPUUsageOnce() (boucle
+        // powermetrics --samplers smc,cpu_power déjà en cours pour le GPU),
+        // ligne "System Average frequency as fraction of nominal".
 
         self.updateMemoryUsage()
         self.updateDiskAndNetwork()
@@ -150,6 +161,54 @@ class SystemMonitor: ObservableObject {
         var count = 0
         sysctlbyname("hw.ncpu", &count, &size, nil, 0)
         return count
+    }
+
+    /// Usage CPU global (%) via l'API Mach host_processor_info — indépendant
+    /// de tout kext ou outil externe (remplace PowerGadgetMonitor.getIAUtilization()).
+    /// Calcule un delta entre deux appels successifs (tick précédent vs actuel)
+    /// sur les compteurs user/system/nice/idle cumulés depuis le boot.
+    private func readCPUUsageNative() -> Double? {
+        var numCPUsU: natural_t = 0
+        var cpuInfo: processor_info_array_t!
+        var numCpuInfo: mach_msg_type_number_t = 0
+
+        let result = host_processor_info(mach_host_self(),
+                                          PROCESSOR_CPU_LOAD_INFO,
+                                          &numCPUsU,
+                                          &cpuInfo,
+                                          &numCpuInfo)
+        guard result == KERN_SUCCESS, let cpuInfo else { return nil }
+        defer {
+            let size = vm_size_t(Int(numCpuInfo) * MemoryLayout<integer_t>.size)
+            vm_deallocate(mach_task_self_, vm_address_t(bitPattern: cpuInfo), size)
+        }
+
+        var totalUser: UInt32 = 0, totalSystem: UInt32 = 0
+        var totalIdle: UInt32 = 0, totalNice: UInt32 = 0
+
+        for i in 0..<Int(numCPUsU) {
+            let offset = Int32(CPU_STATE_MAX) * Int32(i)
+            totalUser   += UInt32(cpuInfo[Int(offset + CPU_STATE_USER)])
+            totalSystem += UInt32(cpuInfo[Int(offset + CPU_STATE_SYSTEM)])
+            totalNice   += UInt32(cpuInfo[Int(offset + CPU_STATE_NICE)])
+            totalIdle   += UInt32(cpuInfo[Int(offset + CPU_STATE_IDLE)])
+        }
+
+        defer {
+            previousCPUTicks = (user: totalUser, system: totalSystem, idle: totalIdle, nice: totalNice)
+        }
+
+        guard let previous = previousCPUTicks else { return nil } // premier appel : pas de delta possible
+
+        let deltaUser   = Double(totalUser &- previous.user)
+        let deltaSystem = Double(totalSystem &- previous.system)
+        let deltaNice   = Double(totalNice &- previous.nice)
+        let deltaIdle   = Double(totalIdle &- previous.idle)
+        let deltaTotal  = deltaUser + deltaSystem + deltaNice + deltaIdle
+
+        guard deltaTotal > 0 else { return nil }
+        let usage = (deltaUser + deltaSystem + deltaNice) / deltaTotal * 100.0
+        return min(max(usage, 0), 100)
     }
 
     // MARK: - RAM
@@ -617,7 +676,7 @@ class SystemMonitor: ObservableObject {
  
             task.launchPath = "/usr/bin/sudo"
         
-            task.arguments  = ["-n", "/usr/bin/powermetrics", "--samplers", "smc", "-i", "500", "-n1"]
+            task.arguments  = ["-n", "/usr/bin/powermetrics", "--samplers", "smc,cpu_power", "-i", "500", "-n1"]
 
             let outPipe = Pipe()
             let errPipe = Pipe()
@@ -669,6 +728,20 @@ class SystemMonitor: ObservableObject {
                        .trimmingCharacters(in: .whitespaces),
                    let temp = Double(tempStr) {
                     DispatchQueue.main.async { self.gpuTemperature = temp }
+                }
+
+                // Fréquence CPU package — sampler "cpu_power", ligne format
+                // confirmée par test sur cette machine :
+                // "System Average frequency as fraction of nominal: 99.65% (3288.31 Mhz)"
+                // On extrait la valeur entre parenthèses, avant " Mhz".
+                if line.contains("System Average frequency as fraction of nominal"),
+                   let openParen = line.firstIndex(of: "("),
+                   let mhzRange = line.range(of: "Mhz") {
+                    let freqStr = line[line.index(after: openParen)..<mhzRange.lowerBound]
+                        .trimmingCharacters(in: .whitespaces)
+                    if let freq = Double(freqStr) {
+                        DispatchQueue.main.async { self.cpuFrequency = freq }
+                    }
                 }
             }
             continuation.resume()
@@ -800,6 +873,18 @@ class SystemMonitor: ObservableObject {
         let lo   = Double(smc.bytes.byte1) / 256.0
         let temp = hi + lo
         return temp > 0 ? temp : nil
+    }
+
+    /// Lecture d'une clé SMC de puissance au format "sp96" (9 bits entiers +
+    /// 6 bits fractionnaires, signé, 16 bits). CONFIRMÉ par sonde manuelle
+    /// sur cette machine avec la clé PCPT (VirtualSMC/SMCProcessor) :
+    /// valeur = brut16_signé / 64.0. Ne pas confondre avec "sp78" (température)
+    /// qui utilise un diviseur différent (256).
+    private func readSMCPower(key: String) -> Double? {
+        guard let smc = readSMCKey(key: key) else { return nil }
+        let raw = Int16(bitPattern: (UInt16(smc.bytes.byte0) << 8) | UInt16(smc.bytes.byte1))
+        let value = Double(raw) / 64.0
+        return value > 0 ? value : nil
     }
 
     // MARK: - CPU Fan Speed via SMC
