@@ -16,7 +16,6 @@
 		AA000000000000000000001D /* SystemMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000010 /* SystemMonitor.swift */; };
 		AA000000000000000000001E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* Assets.xcassets */; };
 		AA000000000000000000001F /* DC3-Cropped.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000005 /* DC3-Cropped.png */; };
-		AA0000000000000000000020 /* DEEPCOOL-LOGO 2.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000006 /* DEEPCOOL-LOGO 2.png */; };
 		AA0000000000000000000021 /* Deepcool.png in Resources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000B /* Deepcool.png */; };
 		AA0000000000000000000022 /* deepcool-logo.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000011 /* deepcool-logo.png */; };
 		AA0000000000000000000023 /* Preview Content in Resources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000F /* Preview Content */; };
@@ -65,7 +64,6 @@
 		AA0000000000000000000003 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000004 /* ContentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000000005 /* DC3-Cropped.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "DC3-Cropped.png"; sourceTree = "<group>"; };
-		AA0000000000000000000006 /* DEEPCOOL-LOGO 2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "DEEPCOOL-LOGO 2.png"; sourceTree = "<group>"; };
 		AA0000000000000000000009 /* DeepCool.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DeepCool.entitlements; sourceTree = "<group>"; };
 		AA000000000000000000000A /* DeepCoolApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepCoolApp.swift; sourceTree = "<group>"; };
 		AA000000000000000000000B /* Deepcool.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Deepcool.png; sourceTree = "<group>"; };
@@ -136,15 +134,14 @@
 				AA0000000000000000000003 /* ContentView.swift */,
 				AA0000000000000000000004 /* ContentViewModel.swift */,
 				AA0000000000000000000005 /* DC3-Cropped.png */,
-				AA0000000000000000000006 /* DEEPCOOL-LOGO 2.png */,
 				AA0000000000000000000009 /* DeepCool.entitlements */,
 				AA000000000000000000000A /* DeepCoolApp.swift */,
 				AA000000000000000000000B /* Deepcool.png */,
+				AA0000000000000000000011 /* deepcool-logo.png */,
 				AA000000000000000000000C /* DeepcoolDeviceManager.swift */,
 				AA000000000000000000000D /* Info.plist */,
 				AA000000000000000000000F /* Preview Content */,
 				AA0000000000000000000010 /* SystemMonitor.swift */,
-				AA0000000000000000000011 /* deepcool-logo.png */,
 			);
 			path = DeepCool;
 			sourceTree = "<group>";
@@ -283,7 +280,6 @@
 				42636C9C2D58A78000471203 /* Media.xcassets in Resources */,
 				AA000000000000000000001E /* Assets.xcassets in Resources */,
 				AA000000000000000000001F /* DC3-Cropped.png in Resources */,
-				AA0000000000000000000020 /* DEEPCOOL-LOGO 2.png in Resources */,
 				AA0000000000000000000021 /* Deepcool.png in Resources */,
 				AA0000000000000000000022 /* deepcool-logo.png in Resources */,
 				AA0000000000000000000023 /* Preview Content in Resources */,

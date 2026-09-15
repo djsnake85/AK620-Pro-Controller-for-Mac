@@ -58,7 +58,7 @@ class ContentViewModel: ObservableObject {
     let systemMonitor: SystemMonitor            // internal pour AppDelegate
     private var updateTask: Task<Void, Never>? = nil
    
-    private let updateInterval: UInt64 = 1_000_000_000
+    private let updateInterval: UInt64 = 1_500_000_000
 
     init() {
         self.deviceManager = DeepcoolDeviceManager()

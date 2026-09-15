@@ -333,7 +333,7 @@ class SystemMonitor: ObservableObject {
                 // CoreWLAN ne scanne pas (contrairement à l'ancienne
                 // méthode via system_profiler) : un intervalle court n'a
                 // plus d'impact sur le débit Wi-Fi.
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
             }
         }
     }
@@ -665,7 +665,7 @@ class SystemMonitor: ObservableObject {
                 await self.readGPUUsageOnce()
                 self.readGPUVRAMUsage()
                 // Aligné sur le "-i 500" de powermetrics ci-dessus.
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
             }
         }
     }

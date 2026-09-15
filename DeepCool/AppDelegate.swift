@@ -143,7 +143,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Charge CPU : vert <= 50%, orange 50-85%, rouge 85-100%
         let usageColor:   NSColor = usage   >= 85 ? .systemRed : usage   > 50 ? .systemOrange : .systemGreen
 
-        cpuFreqMenuItem?.title = String(format: "Fréquence ⚡️: %.2f GHz", frequency / 1000.0)
+        cpuFreqMenuItem?.attributedTitle = NSAttributedString(
+            string: String(format: "Fréquence ⚡️: %.2f GHz", frequency / 1000.0),
+            attributes: [
+                .foregroundColor: NSColor.labelColor,
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium)
+            ]
+        )
         cpuTempMenuItem?.attributedTitle  = attributedTextWithSymbol(
             symbol: "thermometer", text: String(format: "CPU: %.0f°C", temp),  color: tempColor)
         cpuUsageMenuItem?.attributedTitle = attributedTextWithSymbol(
@@ -168,7 +174,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusString.append(attributedTextWithSymbol(
             symbol: "gauge", text: String(format: "Usage: %.0f%%", usage), color: usageColor))
         statusString.append(NSAttributedString(
-            string: String(format: " | Fréquence⚡️: %.2fGHz", frequency / 1000.0)))
+            string: String(format: " | Fréquence⚡️: %.2fGHz", frequency / 1000.0),
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium)
+            ]))
         statusString.append(NSAttributedString(string: " | "))
         statusString.append(attributedTextWithSymbol(
             symbol: "thermometer", text: String(format: "GPU: %.0f°C", gpuTemp), color: gpuTempColor))
@@ -181,7 +190,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func attributedTextWithSymbol(symbol: String, text: String, color: NSColor) -> NSAttributedString {
         let result = NSMutableAttributedString()
         if let icon = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) {
-            let tintedIcon = NSImage(size: NSSize(width: 14, height: 14), flipped: false) { rect in
+            let tintedIcon = NSImage(size: NSSize(width: 12, height: 12), flipped: false) { rect in
                 icon.draw(in: rect)
                 color.set()
                 rect.fill(using: .sourceAtop)
@@ -194,7 +203,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         result.append(NSAttributedString(string: text, attributes: [
             .foregroundColor: color,
-            .font: NSFont.systemFont(ofSize: 12, weight: .semibold)
+            .font: NSFont.systemFont(ofSize: 11, weight: .medium)
         ]))
         return result
     }
