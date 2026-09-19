@@ -67,6 +67,31 @@ struct InfoCard<Content: View>: View {
     }
 }
 
+// ---------- Police Digital-D (enregistrement automatique) ----------
+// Digital-D.ttf est embarquée dans le bundle de l'app (Copy Bundle Resources)
+// et enregistrée au premier usage, sans installation manuelle par l'utilisateur.
+enum DigitalFont {
+    /// Nom PostScript lu directement dans le fichier .ttf (nil si introuvable).
+    static let postScriptName: String? = {
+        guard let url = Bundle.main.url(forResource: "Digital-D", withExtension: "ttf") else {
+            return nil
+        }
+        var error: Unmanaged<CFError>?
+        CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error)
+        guard let provider = CGDataProvider(url: url as CFURL),
+              let cgFont = CGFont(provider),
+              let name = cgFont.postScriptName as String? else { return nil }
+        return name
+    }()
+
+    static func font(size: CGFloat) -> Font {
+        if let name = postScriptName {
+            return .custom(name, size: size)
+        }
+        return .system(size: size, weight: .bold, design: .rounded) // repli
+    }
+}
+
 // ---------- HorizontalGaugeBar ----------
 struct HorizontalGaugeBar: View {
     var value: Double
@@ -77,6 +102,7 @@ struct HorizontalGaugeBar: View {
     var valueFormat: String = "%.1f"
     var barHeight: CGFloat = 8
     var compact: Bool = false
+    var digitalValue: Bool = false
 
     private var safeMax: Double { maxValue > 0 ? maxValue : 1 }
     private var percent: Double { min(max(value / safeMax, 0), 1) }
@@ -90,7 +116,8 @@ struct HorizontalGaugeBar: View {
                     .tracking(0.5)
                 Spacer()
                 Text("\(String(format: valueFormat, value)) \(unit)")
-                    .font(.system(size: compact ? 11 : 12, weight: .bold, design: .rounded))
+                    .font(digitalValue ? DigitalFont.font(size: compact ? 14 : 15)
+                                       : .system(size: compact ? 11 : 12, weight: .bold, design: .rounded))
                     .foregroundColor(primaryText)
             }
 
@@ -160,6 +187,7 @@ fileprivate struct StatRow: View {
     let value: String
     var accent: Color = secondaryText
     var valueColor: Color = primaryText
+    var digitalValue: Bool = false
 
     var body: some View {
         HStack(spacing: 5) {
@@ -172,7 +200,8 @@ fileprivate struct StatRow: View {
                 .foregroundColor(secondaryText)
             Spacer()
             Text(value)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .font(digitalValue ? DigitalFont.font(size: 14)
+                                   : .system(size: 11, weight: .bold, design: .rounded))
                 .foregroundColor(valueColor)
         }
     }
@@ -213,44 +242,41 @@ struct SystemHeaderCard: View {
                 HStack(spacing: 6) {
                     ZStack {
                         Circle().fill(secondaryText.opacity(0.15)).frame(width: 22, height: 22)
-                        Image("DEEPCOOL-LOGO")
-                            .resizable()
-                            .renderingMode(.template)
-                            .scaledToFit()
-                            .frame(width: 12, height: 12)
+                        Image(systemName: "apple.logo")
+                            .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(secondaryText)
                     }
                     Text("Système")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(primaryText)
                 }
 
                 Spacer()
 
                 HStack(spacing: 5) {
-                    Image(systemName: "apple.logo")
-                        .font(.system(size: 12, weight: .semibold))
+                    Image(systemName: "macpro.gen3")
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(secondaryText)
                     Text(smbiosModel)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(primaryText)
                 }
 
                 HStack(spacing: 5) {
                     Image(systemName: "memorychip")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(secondaryText)
                     Text(String(format: "%.0f GB RAM", ramTotal))
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(primaryText)
                 }
 
                 HStack(spacing: 5) {
                     Image(systemName: "gearshape.fill")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(secondaryText)
                     Text(osVersion)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(primaryText)
                 }
             }
@@ -403,7 +429,8 @@ struct CPUCard: View {
                     label: "Charge",
                     accent: chargeColor,
                     valueFormat: "%.0f",
-                    compact: true
+                    compact: true,
+                    digitalValue: true
                 )
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Charge CPU : \(Int(cpuUsagePercent)) pour cent")
@@ -413,13 +440,13 @@ struct CPUCard: View {
                 VStack(spacing: 5) {
                     StatRow(icon: "bolt.fill", label: "Fréquence",
                             value: String(format: "%.2f GHz", cpuFrequencyMHz / 1000.0),
-                            accent: cpuAccent, valueColor: cpuAccent)
+                            accent: cpuAccent, valueColor: cpuAccent, digitalValue: true)
                     StatRow(icon: "flame.fill", label: "TDP",
                             value: String(format: "%.0f W", cpuTDP),
-                            accent: cpuAccent, valueColor: cpuAccent)
+                            accent: cpuAccent, valueColor: cpuAccent, digitalValue: true)
                     StatRow(icon: "thermometer", label: "Température",
                             value: String(format: "%.0f°C", cpuTemp),
-                            accent: tempColor, valueColor: tempColor)
+                            accent: tempColor, valueColor: tempColor, digitalValue: true)
                     StatRow(icon: "wind", label: "Ventilateur CPU",
                             value: cpuFanRPM > 0 ? String(format: "%.0f RPM", cpuFanRPM) : "N/A",
                             accent: cpuAccent, valueColor: cpuAccent)
@@ -468,7 +495,8 @@ struct GPUCardSimple: View {
                     label: "Charge",
                     accent: chargeColor,
                     valueFormat: "%.0f",
-                    compact: true
+                    compact: true,
+                    digitalValue: true
                 )
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Charge GPU : \(Int(gpuUsage)) pour cent")
@@ -490,17 +518,17 @@ struct GPUCardSimple: View {
                 VStack(spacing: 5) {
                     StatRow(icon: "waveform.path.ecg", label: "Fréquence GPU",
                             value: gpuFrequency > 0 ? String(format: "%.0f MHz", gpuFrequency) : "N/A",
-                            accent: gpuAccent, valueColor: gpuAccent)
+                            accent: gpuAccent, valueColor: gpuAccent, digitalValue: true)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(String(format: "Fréquence GPU : %.0f mégahertz", gpuFrequency))
                     StatRow(icon: "bolt.fill", label: "TDP GPU",
                             value: gpuTDP > 0 ? String(format: "%.0f W", gpuTDP) : "N/A",
-                            accent: gpuAccent, valueColor: gpuAccent)
+                            accent: gpuAccent, valueColor: gpuAccent, digitalValue: true)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(String(format: "TDP GPU : %.0f watts", gpuTDP))
                     StatRow(icon: "thermometer", label: "Température",
                             value: String(format: "%.0f°C", gpuTemperature),
-                            accent: tempColor, valueColor: tempColor)
+                            accent: tempColor, valueColor: tempColor, digitalValue: true)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(String(format: "Température GPU : %.0f degrés", gpuTemperature))
                     StatRow(icon: "wind", label: "Ventilateur GPU",
@@ -532,7 +560,7 @@ struct MemoryCard: View {
 
                 UsageBarView(used: ramUsed, total: ramTotal, accent: ramAccent)
 
-                StatRow(icon: "square.stack.3d.up", label: "RAM installée",
+                StatRow(icon: "memorychip", label: "RAM installée",
                         value: String(format: "%.0f GB / %.0f MHz", ramTotal, ramFreqMHz),
                         accent: ramAccent, valueColor: ramAccent)
             }

@@ -16,12 +16,14 @@
 		AA000000000000000000001D /* SystemMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000010 /* SystemMonitor.swift */; };
 		AA000000000000000000001E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* Assets.xcassets */; };
 		AA000000000000000000001F /* DC3-Cropped.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000005 /* DC3-Cropped.png */; };
-		AA0000000000000000000021 /* Deepcool.png in Resources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000B /* Deepcool.png */; };
 		AA0000000000000000000022 /* deepcool-logo.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000011 /* deepcool-logo.png */; };
 		AA0000000000000000000023 /* Preview Content in Resources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000F /* Preview Content */; };
 		AA0000000000000000000026 /* DeepCoolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000013 /* DeepCoolTests.swift */; };
 		AA0000000000000000000028 /* DeepCoolUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000014 /* DeepCoolUITests.swift */; };
 		AA0000000000000000000029 /* DeepCoolUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000015 /* DeepCoolUITestsLaunchTests.swift */; };
+		D63CF393305E73B500AFF5CA /* Digital-D.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D63CF392305E73B500AFF5CA /* Digital-D.ttf */; };
+		D63CF394305E73B500AFF5CA /* Digital-D.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D63CF392305E73B500AFF5CA /* Digital-D.ttf */; };
+		D63CF395305E73B500AFF5CA /* Digital-D.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D63CF392305E73B500AFF5CA /* Digital-D.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,9 +68,7 @@
 		AA0000000000000000000005 /* DC3-Cropped.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "DC3-Cropped.png"; sourceTree = "<group>"; };
 		AA0000000000000000000009 /* DeepCool.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DeepCool.entitlements; sourceTree = "<group>"; };
 		AA000000000000000000000A /* DeepCoolApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepCoolApp.swift; sourceTree = "<group>"; };
-		AA000000000000000000000B /* Deepcool.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Deepcool.png; sourceTree = "<group>"; };
 		AA000000000000000000000C /* DeepcoolDeviceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepcoolDeviceManager.swift; sourceTree = "<group>"; };
-		AA000000000000000000000D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA000000000000000000000F /* Preview Content */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "Preview Content"; sourceTree = "<group>"; };
 		AA0000000000000000000010 /* SystemMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemMonitor.swift; sourceTree = "<group>"; };
 		AA0000000000000000000011 /* deepcool-logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "deepcool-logo.png"; sourceTree = "<group>"; };
@@ -76,6 +76,7 @@
 		AA0000000000000000000014 /* DeepCoolUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepCoolUITests.swift; sourceTree = "<group>"; };
 		AA0000000000000000000015 /* DeepCoolUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepCoolUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		AA0000000000000000000016 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D63CF392305E73B500AFF5CA /* Digital-D.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Digital-D.ttf"; path = "DeepCool/Digital-D.ttf"; sourceTree = SOURCE_ROOT; };
 		D66349793050DA0400A65162 /* DeepCoolRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DeepCoolRelease.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -128,6 +129,7 @@
 		42C685852D56988E00AEC89A /* DeepCool */ = {
 			isa = PBXGroup;
 			children = (
+				D63CF392305E73B500AFF5CA /* Digital-D.ttf */,
 				D66349793050DA0400A65162 /* DeepCoolRelease.entitlements */,
 				AA0000000000000000000002 /* Assets.xcassets */,
 				AA0000000000000000000001 /* AppDelegate.swift */,
@@ -136,10 +138,8 @@
 				AA0000000000000000000005 /* DC3-Cropped.png */,
 				AA0000000000000000000009 /* DeepCool.entitlements */,
 				AA000000000000000000000A /* DeepCoolApp.swift */,
-				AA000000000000000000000B /* Deepcool.png */,
 				AA0000000000000000000011 /* deepcool-logo.png */,
 				AA000000000000000000000C /* DeepcoolDeviceManager.swift */,
-				AA000000000000000000000D /* Info.plist */,
 				AA000000000000000000000F /* Preview Content */,
 				AA0000000000000000000010 /* SystemMonitor.swift */,
 			);
@@ -279,8 +279,8 @@
 			files = (
 				42636C9C2D58A78000471203 /* Media.xcassets in Resources */,
 				AA000000000000000000001E /* Assets.xcassets in Resources */,
+				D63CF393305E73B500AFF5CA /* Digital-D.ttf in Resources */,
 				AA000000000000000000001F /* DC3-Cropped.png in Resources */,
-				AA0000000000000000000021 /* Deepcool.png in Resources */,
 				AA0000000000000000000022 /* deepcool-logo.png in Resources */,
 				AA0000000000000000000023 /* Preview Content in Resources */,
 			);
@@ -290,6 +290,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D63CF394305E73B500AFF5CA /* Digital-D.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -297,6 +298,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D63CF395305E73B500AFF5CA /* Digital-D.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
