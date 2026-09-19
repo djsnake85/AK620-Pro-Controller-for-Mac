@@ -227,18 +227,22 @@ class SystemMonitor: ObservableObject {
         }
 
         if result == KERN_SUCCESS {
-            let pageSize   = vm_kernel_page_size
-            let active     = Double(stats.active_count)          * Double(pageSize)
-            let wired      = Double(stats.wire_count)            * Double(pageSize)
-            let compressed = Double(stats.compressor_page_count) * Double(pageSize)
+            let pageSize   = Double(vm_kernel_page_size)
 
-            // CORRECTION : "inactive_count" correspond à des pages en cache
-            // immédiatement récupérables (fichiers mis en cache). Le Moniteur
-            // d'activité macOS ne les compte PAS dans "Mémoire utilisée" — il
-            // les affiche séparément sous "Fichiers en cache". Les inclure
-            // gonflait l'usage affiché de plusieurs Go par rapport au Moniteur
-            // d'activité. On reproduit donc son calcul : App + Wired + Compressé.
-            let used  = active + wired + compressed
+            // Reproduit exactement le calcul du Moniteur d'activité macOS :
+            //   Mémoire utilisée = Mémoire de l'application + Résidente (wired) + Compressée
+            // avec :
+            //   Mémoire de l'application = internal_page_count - purgeable_count
+            // NB : "active_count" seul est incorrect, car de nombreuses pages
+            // d'apps sont classées "inactives" par le noyau tout en restant
+            // de la mémoire d'application. Les fichiers en cache correspondent
+            // à external_page_count + purgeable_count (non comptés ici).
+            let appPages   = max(Double(stats.internal_page_count) - Double(stats.purgeable_count), 0)
+            let appMemory  = appPages                              * pageSize
+            let wired      = Double(stats.wire_count)              * pageSize
+            let compressed = Double(stats.compressor_page_count)   * pageSize
+
+            let used  = appMemory + wired + compressed
             let total = Double(ProcessInfo.processInfo.physicalMemory)
 
             DispatchQueue.main.async {
