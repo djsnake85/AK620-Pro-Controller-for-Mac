@@ -111,13 +111,13 @@ struct HorizontalGaugeBar: View {
         VStack(alignment: .leading, spacing: compact ? 3 : 4) {
             HStack(alignment: .firstTextBaseline) {
                 Text(label.uppercased())
-                    .font(.system(size: compact ? 9 : 10, weight: .semibold, design: .rounded))
+                    .font(.system(size: compact ? 10 : 11, weight: .semibold, design: .rounded))
                     .foregroundColor(accent)
                     .tracking(0.5)
                 Spacer()
                 Text("\(String(format: valueFormat, value)) \(unit)")
-                    .font(digitalValue ? DigitalFont.font(size: compact ? 14 : 15)
-                                       : .system(size: compact ? 11 : 12, weight: .bold, design: .rounded))
+                    .font(digitalValue ? DigitalFont.font(size: compact ? 15 : 16)
+                                       : .system(size: compact ? 12 : 13, weight: .bold, design: .rounded))
                     .foregroundColor(primaryText)
             }
 
@@ -164,11 +164,11 @@ struct UsageBarView: View {
 
             HStack {
                 Text(String(format: "%.2f / %.2f \(unit)", used, total))
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(secondaryText)
                 Spacer()
                 Text(String(format: "%d%%", Int(percent * 100)))
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
                     .foregroundColor(accent)
             }
         }
@@ -192,16 +192,16 @@ fileprivate struct StatRow: View {
     var body: some View {
         HStack(spacing: 5) {
             Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(accent)
                 .frame(width: 12)
             Text(label)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundColor(secondaryText)
             Spacer()
             Text(value)
-                .font(digitalValue ? DigitalFont.font(size: 14)
-                                   : .system(size: 11, weight: .bold, design: .rounded))
+                .font(digitalValue ? DigitalFont.font(size: 15)
+                                   : .system(size: 12, weight: .bold, design: .rounded))
                 .foregroundColor(valueColor)
         }
     }
@@ -212,7 +212,7 @@ fileprivate struct CardHeader: View {
     let icon: String
     let title: String
     let accent: Color
-    var iconSize: CGFloat = 11
+    var iconSize: CGFloat = 12
     var circleSize: CGFloat = 22
 
     var body: some View {
@@ -224,7 +224,7 @@ fileprivate struct CardHeader: View {
                     .foregroundColor(accent)
             }
             Text(title)
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundColor(primaryText)
         }
     }
@@ -247,7 +247,7 @@ struct SystemHeaderCard: View {
                             .foregroundColor(secondaryText)
                     }
                     Text("Système")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(primaryText)
                 }
 
@@ -258,7 +258,7 @@ struct SystemHeaderCard: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(secondaryText)
                     Text(smbiosModel)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(primaryText)
                 }
 
@@ -267,7 +267,7 @@ struct SystemHeaderCard: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(secondaryText)
                     Text(String(format: "%.0f GB RAM", ramTotal))
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(primaryText)
                 }
 
@@ -276,7 +276,7 @@ struct SystemHeaderCard: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(secondaryText)
                     Text(osVersion)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(primaryText)
                 }
             }
@@ -413,7 +413,7 @@ struct CPUCard: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(cpuModel)
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundColor(primaryText)
                         .lineLimit(1)
 
@@ -438,10 +438,10 @@ struct CPUCard: View {
                 Divider().background(cardBorder)
 
                 VStack(spacing: 5) {
-                    StatRow(icon: "bolt.fill", label: "Fréquence",
+                    StatRow(icon: "waveform.path.ecg", label: "Fréquence",
                             value: String(format: "%.2f GHz", cpuFrequencyMHz / 1000.0),
                             accent: cpuAccent, valueColor: cpuAccent, digitalValue: true)
-                    StatRow(icon: "flame.fill", label: "TDP",
+                    StatRow(icon: "bolt.fill", label: "TDP",
                             value: String(format: "%.0f W", cpuTDP),
                             accent: cpuAccent, valueColor: cpuAccent, digitalValue: true)
                     StatRow(icon: "thermometer", label: "Température",
@@ -580,7 +580,7 @@ struct DiskCard: View {
                 CardHeader(icon: "internaldrive.fill", title: "Disque", accent: diskAccent)
 
                 Text(diskModel)
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundColor(secondaryText)
                     .lineLimit(1)
 
