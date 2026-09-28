@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>DS-DIGI.TTF</string>
+	</array>
+	<key>UIAppFonts
+import AppKit
+
+struct VisualEffectBlur: NSViewRepresentable {
+    var blurStyle: NSVisualEffectView.Material
+
+    func makeNSView(context: Context) -&gt; NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = blurStyle
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = blurStyle
+    }
+}
+
+struct ContentView: View {
+    @StateObject private var deviceManager = DeepcoolDeviceManager()
+    @StateObject private var systemMonitor = SystemMonitor()
+    @State private var commandTimer: Timer? = nil
+    @State private var animatePulse = false
+
+    var body: some View {
+        ZStack {
+            VisualEffectBlur(blurStyle: .dark)
+                .ignoresSafeArea()
+
+            VStack(spacing: 30) {
+
+                Text(&quot;AK620 DIGITAL PRO&quot;)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.top, 40)
+
+                Spacer()
+
+                HStack(spacing: 24) {
+                    MetricView(
+                        title: &quot;CPU Frequency&quot;,
+                        iconName: &quot;cpu&quot;,
+                        value: String(format: &quot;%.2f GHz&quot;, systemMonitor.cpuFrequency),
+                        valueColor: .white
+                    )
+                    MetricView(
+                        title: &quot;CPU Usage&quot;,
+                        iconName: &quot;speedometer&quot;,
+                        value: String(format: &quot;%.1f %%&quot;, systemMonitor.cpuUsage),
+                        valueColor: .white
+                    )
+                }
+
+                HStack(spacing: 24) {
+                    TemperatureMetricView(
+                        title: &quot;Temperature&quot;,
+                        iconName: &quot;thermometer&quot;,
+                        value: String(format: &quot;%.1f °C&quot;, systemMonitor.cpuTemperature),
+                        temp: systemMonitor.cpuTemperature,
+                        animatePulse: $animatePulse
+                    )
+                }
+
+                Spacer()
+
+                Text(&quot;Commands are sent every 200ms&quot;)
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.7))
+                    .padding(.bottom, 20)
+            }
+            .padding()
+            .onAppear {
+                startSendingCommands()
+                animatePulse = true
+            }
+            .onDisappear {
+                stopSendingCommands()
+            }
+        }
+    }
+
+    func startSendingCommands() {
+        commandTimer?.invalidate()
+        commandTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
+            let commandData = systemMonitor.createHUDCommand()
+            deviceManager.sendCommand(commandData)
+        }
+    }
+
+    func stopSendingCommands() {
+        commandTimer?.invalidate()
+        commandTimer = nil
+    }
+}
+
+struct MetricView: View {
+    var title: String
+    var iconName: String
+    var value: String
+    var valueColor: Color
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: iconName)
+                    .foregroundColor(.white.opacity(0.7))
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(.white.opacity(0.8))
+            }
+
+            Text(value)
+                .font(.custom(&quot;DS-Digital&quot;, size: 34))
+                .foregroundColor(valueColor)
+                .shadow(color: valueColor.opacity(0.8), radius: 4, x: 0, y: 0)
+        }
+        .padding(20)
+        .frame(minWidth: 140)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.black.opacity(0.6), Color.black.opacity(0.3)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.8), radius: 8, x: 0, y: 4)
+    }
+}
+
+struct TemperatureMetricView: View {
+    var title: String
+    var iconName: String
+    var value: String
+    var temp: Double
+    @Binding var animatePulse: Bool
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: iconName)
+                    .foregroundColor(temperatureColor(temp).opacity(animatePulse ? 1 : 0.5))
+                    .scaleEffect(animatePulse ? 1.2 : 1.0)
+                    .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: animatePulse)
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(.white.opacity(0.8))
+            }
+
+            Text(value)
+                .font(.custom(&quot;DS-Digital&quot;, size: 34))
+                .foregroundColor(temperatureColor(temp))
+                .shadow(color: temperatureColor(temp).opacity(0.8), radius: 4, x: 0, y: 0)
+                .scaleEffect(animatePulse ? 1.05 : 1.0)
+                .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: animatePulse)
+        }
+        .padding(20)
+        .frame(minWidth: 140)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.black.opacity(0.6), Color.black.opacity(0.3)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.8), radius: 8, x: 0, y: 4)
+    }
+
+    private func temperatureColor(_ temp: Double) -&gt; Color {
+        if temp &gt; 75 { return .red }
+        else if temp &gt;= 65 { return .orange }
+        else { return .green }
+    }
+}
+</key>
+	<string>DS-DIGI.TTF</string>
+	<key>ATSApplicationFontsPath</key>
+	<string>Resources</string>
+	<key>NSFonts</key>
+	<string>DS-DIGI.TTF</string>
+</dict>
+</plist>
