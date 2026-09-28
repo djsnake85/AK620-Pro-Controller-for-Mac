@@ -1,0 +1,18 @@
+{
+  "images" : [
+    {
+      "filename" : "Deepcool 16.png",
+      "idiom" : "mac",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "Deepcool 17.png",
+      "idiom" : "mac",
+      "scale" : "2x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
