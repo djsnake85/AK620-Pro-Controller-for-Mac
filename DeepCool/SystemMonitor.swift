@@ -77,8 +77,8 @@ class SystemMonitor: ObservableObject {
     @Published var diskUsed: Double = 0.0
     @Published var diskTotal: Double = 0.0
     @Published var diskTemperature: Double = 0.0
-    // Compteur pour ne relancer smartctl (coûteux : spawn de process)
-    // qu'une fois toutes les ~4 itérations (~6 s à updateInterval = 1.5 s).
+    // Compteur pour n'interroger la clé SMC qu'une fois toutes les
+    // ~4 itérations (~6 s à updateInterval = 1.5 s) plutôt qu'à chaque tick.
     private var diskTempTickCounter: Int = 0
 
     // ---------- Network ----------
@@ -572,11 +572,22 @@ class SystemMonitor: ObservableObject {
         }
     }
 
-    // MARK: - Disk Temperature via smartctl
-    // macOS n'expose pas nativement la température SMART/NVMe d'un disque
-    // interne (system_profiler / diskutil ne la donnent pas). On passe donc
-    // par smartctl (smartmontools, ex : "brew install smartmontools").
-    // Si l'outil n'est pas installé, diskTemperature reste simplement à 0.
+    // MARK: - Disk Temperature via NVMe SMART natif (IOKit, sans dépendance)
+    //
+    // Réimplémentation en Swift de la méthode employée par smartmontools/
+    // smartctl sur macOS (fichier os_darwin.cpp/.h, licence GPL-2.0-or-later,
+    // https://github.com/smartmontools/smartmontools) : passe par l'interface
+    // privée "IONVMeSMARTInterface" exposée par IONVMeFamily.kext (intégré à
+    // macOS, gère les SSD NVMe génériques/tiers — pas le contrôleur Apple
+    // ANS2 propriétaire). Aucun binaire externe, aucun kext tiers requis.
+    //
+    // ATTENTION : interface non documentée par Apple (smartmontools la
+    // qualifie lui-même d'"API non documentée"). La disposition mémoire du
+    // struct ci-dessous reproduit fidèlement le code source public de
+    // smartmontools, mais n'a pas pu être testée sur du matériel réel ici.
+    // Les logs [DiskTemperature] ci-dessous indiquent précisément à quelle
+    // étape ça échoue le cas échéant (service introuvable, plugin introuvable,
+    // QueryInterface en échec, GetLogPage en échec).
 
     private func updateDiskTemperature() {
         diskTempTickCounter += 1
@@ -591,80 +602,160 @@ class SystemMonitor: ObservableObject {
             return
         }
 
-        if let temp = smartctlTemperature(forBSDName: identifier) {
+        if let temp = readNVMeSMARTTemperature(bsdName: identifier), temp > 0, temp < 100 {
             #if DEBUG
-            print("[DiskTemperature] \(identifier) -> \(temp)°C")
+            print("[DiskTemperature] NVMe SMART \(identifier) -> \(temp)°C")
             #endif
             DispatchQueue.main.async { self.diskTemperature = temp }
-        } else {
-            #if DEBUG
-            print("[DiskTemperature] Échec de lecture smartctl pour \(identifier).")
-            #endif
         }
+        // Si readNVMeSMARTTemperature échoue, elle a déjà loggé la raison en Debug.
     }
 
-    private func smartctlTemperature(forBSDName bsdName: String) -> Double? {
-        // Emplacements usuels de smartctl selon l'architecture (brew).
-        let candidatePaths = ["/opt/homebrew/bin/smartctl", "/usr/local/bin/smartctl", "/usr/local/sbin/smartctl"]
-        guard let smartctlPath = candidatePaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+    /// Lit la température composite (Composite Temperature, champ standard
+    /// de la spec NVMe — pas une donnée privée Apple) depuis la page de log
+    /// SMART/Health Information (Log Page ID 0x02) du disque NVMe identifié
+    /// par son nom BSD (ex: "disk0"). Retourne nil si le disque n'est pas
+    /// NVMe ou en cas d'échec à n'importe quelle étape.
+    private func readNVMeSMARTTemperature(bsdName: String) -> Double? {
+        // 1. Trouver le service IOKit du disque par son nom BSD.
+        let matching = IOBSDNameMatching(kIOMasterPortDefault, 0, bsdName)
+        let device = IOServiceGetMatchingService(kIOMasterPortDefault, matching)
+        guard device != IO_OBJECT_NULL else {
             #if DEBUG
-            print("[DiskTemperature] smartctl introuvable dans \(candidatePaths). Installez-le avec 'brew install smartmontools'.")
+            print("[DiskTemperature] Service IOKit introuvable pour \(bsdName).")
+            #endif
+            return nil
+        }
+        defer { IOObjectRelease(device) }
+
+        // 2. Remonter les parents jusqu'à trouver celui qui expose la
+        // propriété "NVMe SMART Capable" (même logique que smartmontools).
+        var capableDevice: io_object_t = IO_OBJECT_NULL
+        var current = device
+        IOObjectRetain(current)
+        var walked = 0
+        while walked < 20 { // garde-fou anti-boucle infinie
+            if let prop = IORegistryEntryCreateCFProperty(current, "NVMe SMART Capable" as CFString, kCFAllocatorDefault, 0) {
+                prop.release()
+                capableDevice = current
+                break
+            }
+            var parent: io_object_t = IO_OBJECT_NULL
+            let err = IORegistryEntryGetParentEntry(current, kIOServicePlane, &parent)
+            IOObjectRelease(current)
+            guard err == KERN_SUCCESS, parent != IO_OBJECT_NULL else {
+                #if DEBUG
+                print("[DiskTemperature] Aucun ancêtre \"NVMe SMART Capable\" trouvé pour \(bsdName) (disque probablement non-NVMe).")
+                #endif
+                return nil
+            }
+            current = parent
+            walked += 1
+        }
+        guard capableDevice != IO_OBJECT_NULL else { return nil }
+        defer { IOObjectRelease(capableDevice) }
+
+        // 3. Créer l'interface plugin NVMe SMART (UUID publiées par
+        // smartmontools dans os_darwin.h).
+        // kIOCFPlugInInterfaceID est une macro C (IOCFPlugIn.h), pas une
+        // constante — Swift ne l'importe pas automatiquement, d'où l'erreur
+        // "Cannot find in scope". On la redéfinit nous-mêmes (valeur
+        // publique, confirmée dans le header open-source d'Apple).
+        let cfPlugInInterfaceID = CFUUIDGetConstantUUIDWithBytes(
+            nil, 0xC2, 0x44, 0xE8, 0x58, 0x10, 0x9C, 0x11, 0xD4,
+            0x91, 0xD4, 0x00, 0x50, 0xE4, 0xC6, 0x42, 0x6F
+        )
+
+        let pluginTypeID = CFUUIDGetConstantUUIDWithBytes(
+            nil, 0xAA, 0x0F, 0xA6, 0xF9, 0xC2, 0xD6, 0x45, 0x7F, 0xB1, 0x0B,
+            0x59, 0xA1, 0x32, 0x53, 0x29, 0x2F
+        )
+        let smartInterfaceID = CFUUIDGetConstantUUIDWithBytes(
+            nil, 0xcc, 0xd1, 0xdb, 0x19, 0xfd, 0x9a, 0x4d, 0xaf, 0xbf, 0x95,
+            0x12, 0x45, 0x4b, 0x23, 0x0a, 0xb6
+        )
+
+        var plugin: UnsafeMutablePointer<UnsafeMutablePointer<IOCFPlugInInterface>?>? = nil
+        var score: Int32 = 0
+        let createResult = IOCreatePlugInInterfaceForService(
+            capableDevice, pluginTypeID, cfPlugInInterfaceID, &plugin, &score
+        )
+        guard createResult == kIOReturnSuccess, let plugin else {
+            #if DEBUG
+            print(String(format: "[DiskTemperature] IOCreatePlugInInterfaceForService a échoué (0x%x).", createResult))
+            #endif
+            return nil
+        }
+        defer { IODestroyPlugInInterface(plugin) }
+
+        guard let interfacePtr = plugin.pointee else {
+            #if DEBUG
+            print("[DiskTemperature] Plugin interface nulle après création.")
             #endif
             return nil
         }
 
-        let task = Process()
-        task.launchPath = smartctlPath
-        // "-a" suffit pour obtenir la section température (NVMe et SATA).
-        task.arguments  = ["-a", "/dev/r\(bsdName)"]
-
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        task.standardOutput = outPipe
-        task.standardError  = errPipe
-        do { try task.run() } catch {
+        // 4. QueryInterface vers IONVMeSMARTInterface (struct privé, non
+        // documenté par Apple — disposition reproduite depuis
+        // smartmontools/os_darwin.h, GPL-2.0-or-later).
+        var smartInterfacePtr: UnsafeMutableRawPointer? = nil
+        let queryResult: HRESULT = withUnsafeMutablePointer(to: &smartInterfacePtr) { ptr -> HRESULT in
+            ptr.withMemoryRebound(to: Optional<UnsafeMutableRawPointer>.self, capacity: 1) { voidPtrPtr in
+                interfacePtr.pointee.QueryInterface(
+                    plugin, CFUUIDGetUUIDBytes(smartInterfaceID), voidPtrPtr
+                )
+            }
+        }
+        guard queryResult == 0 /* S_OK */, let smartIf = smartInterfacePtr else {
             #if DEBUG
-            print("[DiskTemperature] Échec du lancement de smartctl : \(error)")
+            print("[DiskTemperature] QueryInterface vers IONVMeSMARTInterface a échoué (code \(queryResult)). Ce disque n'expose peut-être pas cette interface.")
+            #endif
+            return nil
+        }
+        defer {
+            // Release() = 3e pointeur du vtable IUnknown standard
+            // (_reserved, QueryInterface, AddRef, Release — 8 octets chacun).
+            let vtable = smartIf.load(as: UnsafeRawPointer.self)
+            typealias ReleaseFn = @convention(c) (UnsafeMutableRawPointer?) -> UInt32
+            let releasePtr = vtable.load(fromByteOffset: 16, as: UnsafeRawPointer.self)
+            let release = unsafeBitCast(releasePtr, to: ReleaseFn.self)
+            _ = release(smartIf)
+        }
+
+        // 5. Appeler GetLogPage, à l'offset 72 du vtable IONVMeSMARTInterface :
+        //    IUNKNOWN_C_GUTS (4 slots x 8 = 32) + version/revision (2x UInt16
+        //    = 4, +4 de padding pour réaligner à 8) + SMARTReadData (8) +
+        //    GetIdentifyData (8) + reserved0 (8) + reserved1 (8) = 72.
+        // Log Page ID 0x02 = SMART/Health Information (standard NVMe, pas
+        // une donnée Apple), sur un buffer de 512 octets (numDWords = 127
+        // = 512/4 - 1, "zero based" selon le commentaire de smartmontools).
+        let vtable = smartIf.load(as: UnsafeRawPointer.self)
+        typealias GetLogPageFn = @convention(c) (UnsafeMutableRawPointer?, UnsafeMutableRawPointer?, UInt32, UInt32) -> Int32
+        let getLogPagePtr = vtable.load(fromByteOffset: 72, as: UnsafeRawPointer.self)
+        let getLogPage = unsafeBitCast(getLogPagePtr, to: GetLogPageFn.self)
+
+        var buffer = [UInt8](repeating: 0, count: 512)
+        let logResult: Int32 = buffer.withUnsafeMutableBytes { raw in
+            getLogPage(smartIf, raw.baseAddress, 0x02, 127)
+        }
+        guard logResult == kIOReturnSuccess else {
+            #if DEBUG
+            print(String(format: "[DiskTemperature] GetLogPage a échoué (0x%x).", logResult))
             #endif
             return nil
         }
 
-        let data = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
-        guard let output = String(data: data, encoding: .utf8) else { return nil }
-
-        #if DEBUG
-        if task.terminationStatus != 0 {
-            let errOutput = String(data: errData, encoding: .utf8) ?? ""
-            print("[DiskTemperature] smartctl a quitté avec le code \(task.terminationStatus) pour /dev/r\(bsdName).\nstdout:\n\(output)\nstderr:\n\(errOutput)")
+        // 6. Composite Temperature : octets 1-2 du log, little-endian, en
+        // Kelvin — champ défini par la spec NVMe elle-même (standard, pas
+        // une donnée propriétaire Apple).
+        let kelvin = UInt16(buffer[1]) | (UInt16(buffer[2]) << 8)
+        guard kelvin > 0 else {
+            #if DEBUG
+            print("[DiskTemperature] Composite Temperature nulle dans le log SMART (page lue avec succès, mais valeur à 0).")
+            #endif
+            return nil
         }
-        #endif
-
-        // Cas NVMe : ligne du type "Temperature:                        42 Celsius"
-        if let line = output.components(separatedBy: "\n")
-            .first(where: { $0.contains("Temperature:") && $0.contains("Celsius") }) {
-            let tokens = line.split(separator: " ").map(String.init)
-            if let idx = tokens.firstIndex(of: "Temperature:"), idx + 1 < tokens.count,
-               let value = Double(tokens[idx + 1]) {
-                return value
-            }
-        }
-
-        // Cas SATA : attribut SMART "194 Temperature_Celsius ... RAW_VALUE"
-        if let line = output.components(separatedBy: "\n")
-            .first(where: { $0.contains("Temperature_Celsius") }) {
-            let tokens = line.split(separator: " ").map(String.init)
-            if let idx = tokens.firstIndex(of: "Temperature_Celsius") {
-                // Colonnes : NOM FLAG VALUE WORST THRESH TYPE UPDATED WHEN_FAILED RAW_VALUE
-                let rawValueIndex = idx + 8
-                if rawValueIndex < tokens.count, let value = Double(tokens[rawValueIndex]) {
-                    return value
-                }
-            }
-        }
-
-        return nil
+        return (Double(kelvin) - 273.15).rounded()
     }
 
     private func physicalWholeDiskIdentifier() -> String? {
